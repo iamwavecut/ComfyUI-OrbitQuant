@@ -12,6 +12,12 @@ This repository is private and experimental. Quantization logic lives in the
 - `OrbitQuant Pipeline Component Loader`: loads a quantized OrbitQuant component
   artifact into a Diffusers-like pipeline object. The default component is
   `transformer`.
+- `OrbitQuant FLUX Loader`: loads an OrbitQuant transformer artifact into a
+  FLUX pipeline object.
+- `OrbitQuant Z-Image Loader`: loads an OrbitQuant transformer artifact into a
+  Z-Image pipeline object.
+- `OrbitQuant Wan Loader`: loads an OrbitQuant transformer artifact into a Wan
+  pipeline object.
 
 ## Install
 
@@ -26,6 +32,7 @@ During development the package dependency points at the private
 - Thin wrapper only; no quantization implementation is duplicated here.
 - First supported path is component artifact loading through
   `orbitquant.load_quantized_pipeline_component`.
-- Image workflow loaders for FLUX/Z-Image and video workflow loaders for Wan
-  still need ComfyUI runtime-specific adapters after the base nodes are tested
-  inside a real ComfyUI checkout.
+- FLUX, Z-Image, and Wan loaders currently attach the quantized transformer
+  component to an existing pipeline object. Runtime-specific ComfyUI workflow
+  adapters can be added after these base nodes are tested inside a real ComfyUI
+  checkout.

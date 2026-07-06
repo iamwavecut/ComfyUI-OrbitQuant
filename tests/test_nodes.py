@@ -18,6 +18,12 @@ def test_node_mappings_expose_loader_and_inspector():
     assert nodes.NODE_DISPLAY_NAME_MAPPINGS["OrbitQuantArtifactInspector"] == (
         "OrbitQuant Inspect Artifact"
     )
+    assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantFluxLoader"] is nodes.OrbitQuantFluxLoader
+    assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantZImageLoader"] is nodes.OrbitQuantZImageLoader
+    assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantWanLoader"] is nodes.OrbitQuantWanLoader
+    assert nodes.NODE_DISPLAY_NAME_MAPPINGS["OrbitQuantFluxLoader"] == (
+        "OrbitQuant FLUX Loader"
+    )
 
 
 def test_root_init_exposes_comfyui_node_mappings():
@@ -90,6 +96,39 @@ def test_loader_calls_orbitquant_pipeline_component_loader(monkeypatch, tmp_path
     assert returned_pipeline is pipeline
     assert calls == [(pipeline, artifact_dir, "transformer", True)]
     assert payload["source_model_id"] == "example/model"
+    assert payload["bits"] == "W4A4"
+
+
+@pytest.mark.parametrize(
+    ("loader_cls", "target"),
+    [
+        (lambda: nodes.OrbitQuantFluxLoader, "flux"),
+        (lambda: nodes.OrbitQuantZImageLoader, "z_image"),
+        (lambda: nodes.OrbitQuantWanLoader, "wan"),
+    ],
+)
+def test_specialized_loaders_load_transformer_component(monkeypatch, tmp_path, loader_cls, target):
+    artifact_dir = tmp_path / "artifact"
+    artifact_dir.mkdir()
+    pipeline = object()
+    manifest = SimpleNamespace(
+        source_model_id=f"example/{target}",
+        weight_bits=4,
+        activation_bits=4,
+    )
+    calls = []
+
+    def fake_loader(pipeline_arg, artifact_arg, *, component, strict):
+        calls.append((pipeline_arg, Path(artifact_arg), component, strict))
+        return manifest
+
+    monkeypatch.setattr(nodes, "load_quantized_pipeline_component", fake_loader)
+
+    returned_pipeline, payload = loader_cls()().load(pipeline, str(artifact_dir), True)
+
+    assert returned_pipeline is pipeline
+    assert calls == [(pipeline, artifact_dir, "transformer", True)]
+    assert payload["loader_target"] == target
     assert payload["bits"] == "W4A4"
 
 

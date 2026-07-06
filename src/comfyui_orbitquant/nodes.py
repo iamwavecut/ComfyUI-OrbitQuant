@@ -109,12 +109,65 @@ class OrbitQuantPipelineComponentLoader:
         return (pipeline, _manifest_payload(manifest))
 
 
+class _OrbitQuantTransformerLoader:
+    loader_target = "generic"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "pipeline": ("PIPELINE", {"forceInput": True}),
+                "artifact_path": (
+                    "STRING",
+                    {"default": "", "multiline": False},
+                ),
+                "strict": ("BOOLEAN", {"default": True}),
+            }
+        }
+
+    RETURN_TYPES = ("PIPELINE", "ORBITQUANT_INFO")
+    RETURN_NAMES = ("pipeline", "info")
+    FUNCTION = "load"
+    CATEGORY = "OrbitQuant"
+
+    def load(self, pipeline: Any, artifact_path: str, strict: bool):
+        if not artifact_path:
+            raise ValueError("artifact_path must not be empty")
+        manifest = load_quantized_pipeline_component(
+            pipeline,
+            artifact_path,
+            component="transformer",
+            strict=bool(strict),
+        )
+        payload = _manifest_payload(manifest)
+        payload["loader_target"] = self.loader_target
+        return (pipeline, payload)
+
+
+class OrbitQuantFluxLoader(_OrbitQuantTransformerLoader):
+    loader_target = "flux"
+
+
+class OrbitQuantZImageLoader(_OrbitQuantTransformerLoader):
+    loader_target = "z_image"
+
+
+class OrbitQuantWanLoader(_OrbitQuantTransformerLoader):
+    loader_target = "wan"
+
+
 NODE_CLASS_MAPPINGS = {
     "OrbitQuantArtifactInspector": OrbitQuantArtifactInspector,
     "OrbitQuantPipelineComponentLoader": OrbitQuantPipelineComponentLoader,
+    "OrbitQuantFluxLoader": OrbitQuantFluxLoader,
+    "OrbitQuantZImageLoader": OrbitQuantZImageLoader,
+    "OrbitQuantWanLoader": OrbitQuantWanLoader,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "OrbitQuantArtifactInspector": "OrbitQuant Inspect Artifact",
     "OrbitQuantPipelineComponentLoader": "OrbitQuant Pipeline Component Loader",
+    "OrbitQuantFluxLoader": "OrbitQuant FLUX Loader",
+    "OrbitQuantZImageLoader": "OrbitQuant Z-Image Loader",
+    "OrbitQuantWanLoader": "OrbitQuant Wan Loader",
 }
