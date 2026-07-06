@@ -15,6 +15,13 @@ def read_manifest(artifact_path: str | Path) -> OrbitQuantManifest:
     )
 
 
+def read_model_index(artifact_path: str | Path) -> dict[str, Any]:
+    path = Path(artifact_path) / "model_index.json"
+    if not path.is_file():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def _manifest_payload(manifest: Any) -> dict[str, Any]:
     return {
         "source_model_id": manifest.source_model_id,
@@ -30,12 +37,25 @@ def _manifest_payload(manifest: Any) -> dict[str, Any]:
     }
 
 
+def _payload_with_model_index(manifest: Any, artifact_path: str | Path) -> dict[str, Any]:
+    payload = _manifest_payload(manifest)
+    model_index = read_model_index(artifact_path)
+    if model_index:
+        payload["artifact_component"] = model_index.get("component", "unknown")
+        payload["artifact_weight_name"] = model_index.get("weight_name", "unknown")
+    return payload
+
+
 def _summary_text(payload: dict[str, Any]) -> str:
-    return "\n".join(
+    lines = [
+        f"Source: {payload['source_model_id']}",
+        f"Revision: {payload['source_revision']}",
+        f"Bits: {payload['bits']}",
+    ]
+    if "artifact_component" in payload:
+        lines.append(f"Component: {payload['artifact_component']}")
+    lines.extend(
         [
-            f"Source: {payload['source_model_id']}",
-            f"Revision: {payload['source_revision']}",
-            f"Bits: {payload['bits']}",
             f"Policy: {payload['target_policy']}",
             f"Runtime: {payload['runtime_mode']}",
             f"Activation backend: {payload['activation_kernel_backend']}",
@@ -44,6 +64,7 @@ def _summary_text(payload: dict[str, Any]) -> str:
             f"Skipped modules: {payload['skipped_module_count']}",
         ]
     )
+    return "\n".join(lines)
 
 
 class OrbitQuantArtifactInspector:
@@ -69,7 +90,7 @@ class OrbitQuantArtifactInspector:
         path = Path(artifact_path)
         manifest = read_manifest(path)
         validation = validate_orbitquant_artifact(path)
-        payload = _manifest_payload(manifest)
+        payload = _payload_with_model_index(manifest, path)
         payload.update(validation)
         return (_summary_text(payload), payload)
 
@@ -106,7 +127,7 @@ class OrbitQuantPipelineComponentLoader:
             component=component,
             strict=bool(strict),
         )
-        return (pipeline, _manifest_payload(manifest))
+        return (pipeline, _payload_with_model_index(manifest, artifact_path))
 
 
 class _OrbitQuantTransformerLoader:
@@ -139,7 +160,7 @@ class _OrbitQuantTransformerLoader:
             component="transformer",
             strict=bool(strict),
         )
-        payload = _manifest_payload(manifest)
+        payload = _payload_with_model_index(manifest, artifact_path)
         payload["loader_target"] = self.loader_target
         return (pipeline, payload)
 

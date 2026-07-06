@@ -8,7 +8,8 @@ This repository is private and experimental. Quantization logic lives in the
 ## Nodes
 
 - `OrbitQuant Inspect Artifact`: validates an OrbitQuant artifact and returns a
-  text summary plus structured metadata.
+  text summary plus structured metadata, including the saved artifact component
+  from `model_index.json` when present.
 - `OrbitQuant Pipeline Component Loader`: loads a quantized OrbitQuant component
   artifact into a Diffusers-like pipeline object. The default component is
   `transformer`.
@@ -32,6 +33,8 @@ During development the package dependency points at the private
 - Thin wrapper only; no quantization implementation is duplicated here.
 - First supported path is component artifact loading through
   `orbitquant.load_quantized_pipeline_component`.
+- Loader nodes use OrbitQuant's artifact component validation, so a transformer
+  loader fails loudly if the artifact was saved for a different component.
 - FLUX, Z-Image, and Wan loaders currently attach the quantized transformer
   component to an existing pipeline object. Runtime-specific ComfyUI workflow
   adapters can be added after these base nodes are tested inside a real ComfyUI

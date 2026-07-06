@@ -62,12 +62,20 @@ def test_inspector_reports_manifest_and_validation(monkeypatch, tmp_path):
         "validate_orbitquant_artifact",
         lambda path: {"valid": True, "tensor_count": 7},
     )
+    monkeypatch.setattr(
+        nodes,
+        "read_model_index",
+        lambda path: {"component": "denoiser", "weight_name": "model.safetensors"},
+    )
 
     text, payload = nodes.OrbitQuantArtifactInspector().inspect(str(artifact_dir))
 
     assert "example/model" in text
     assert "W4A4" in text
+    assert "Component: denoiser" in text
     assert payload["valid"] is True
+    assert payload["artifact_component"] == "denoiser"
+    assert payload["artifact_weight_name"] == "model.safetensors"
     assert payload["quantized_module_count"] == 2
     assert payload["adaln_module_count"] == 1
     assert payload["skipped_module_count"] == 1
