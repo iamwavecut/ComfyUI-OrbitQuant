@@ -79,6 +79,9 @@ def test_inspector_reports_manifest_and_validation(monkeypatch, tmp_path):
     assert payload["quantized_module_count"] == 2
     assert payload["adaln_module_count"] == 1
     assert payload["skipped_module_count"] == 1
+    assert payload["quantized_modules"] == ["a", "b"]
+    assert payload["adaln_modules"] == ["c"]
+    assert payload["skipped_modules"] == ["d"]
 
 
 def test_loader_calls_orbitquant_pipeline_component_loader(monkeypatch, tmp_path):
@@ -123,6 +126,7 @@ def test_specialized_loaders_load_transformer_component(monkeypatch, tmp_path, l
         source_model_id=f"example/{target}",
         weight_bits=4,
         activation_bits=4,
+        target_policy=target,
     )
     calls = []
 
@@ -138,6 +142,53 @@ def test_specialized_loaders_load_transformer_component(monkeypatch, tmp_path, l
     assert calls == [(pipeline, artifact_dir, "transformer", True)]
     assert payload["loader_target"] == target
     assert payload["bits"] == "W4A4"
+
+
+def test_flux_loader_accepts_flux2_artifacts(monkeypatch, tmp_path):
+    artifact_dir = tmp_path / "artifact"
+    artifact_dir.mkdir()
+    pipeline = object()
+    manifest = SimpleNamespace(
+        source_model_id="black-forest-labs/FLUX.2-klein-4B",
+        weight_bits=4,
+        activation_bits=4,
+        target_policy="flux2",
+    )
+
+    monkeypatch.setattr(
+        nodes,
+        "load_quantized_pipeline_component",
+        lambda pipeline_arg, artifact_arg, *, component, strict: manifest,
+    )
+
+    returned_pipeline, payload = nodes.OrbitQuantFluxLoader().load(
+        pipeline, str(artifact_dir), True
+    )
+
+    assert returned_pipeline is pipeline
+    assert payload["loader_target"] == "flux"
+    assert payload["target_policy"] == "flux2"
+
+
+def test_specialized_loader_rejects_mismatched_target_policy(monkeypatch, tmp_path):
+    artifact_dir = tmp_path / "artifact"
+    artifact_dir.mkdir()
+    pipeline = object()
+    manifest = SimpleNamespace(
+        source_model_id="Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+        weight_bits=4,
+        activation_bits=4,
+        target_policy="wan",
+    )
+
+    monkeypatch.setattr(
+        nodes,
+        "load_quantized_pipeline_component",
+        lambda pipeline_arg, artifact_arg, *, component, strict: manifest,
+    )
+
+    with pytest.raises(ValueError, match="OrbitQuant FLUX Loader"):
+        nodes.OrbitQuantFluxLoader().load(pipeline, str(artifact_dir), True)
 
 
 def test_loader_rejects_empty_artifact_path():

@@ -23,6 +23,9 @@ def read_model_index(artifact_path: str | Path) -> dict[str, Any]:
 
 
 def _manifest_payload(manifest: Any) -> dict[str, Any]:
+    quantized_modules = list(getattr(manifest, "quantized_modules", []))
+    adaln_modules = list(getattr(manifest, "adaln_modules", []))
+    skipped_modules = list(getattr(manifest, "skipped_modules", []))
     return {
         "source_model_id": manifest.source_model_id,
         "source_revision": getattr(manifest, "source_revision", "unknown"),
@@ -31,9 +34,12 @@ def _manifest_payload(manifest: Any) -> dict[str, Any]:
         "target_policy": getattr(manifest, "target_policy", "unknown"),
         "runtime_mode": getattr(manifest, "runtime_mode", "unknown"),
         "activation_kernel_backend": getattr(manifest, "activation_kernel_backend", "auto"),
-        "quantized_module_count": len(getattr(manifest, "quantized_modules", [])),
-        "adaln_module_count": len(getattr(manifest, "adaln_modules", [])),
-        "skipped_module_count": len(getattr(manifest, "skipped_modules", [])),
+        "quantized_module_count": len(quantized_modules),
+        "adaln_module_count": len(adaln_modules),
+        "skipped_module_count": len(skipped_modules),
+        "quantized_modules": quantized_modules,
+        "adaln_modules": adaln_modules,
+        "skipped_modules": skipped_modules,
     }
 
 
@@ -132,6 +138,8 @@ class OrbitQuantPipelineComponentLoader:
 
 class _OrbitQuantTransformerLoader:
     loader_target = "generic"
+    display_name = "OrbitQuant Transformer Loader"
+    accepted_target_policies: tuple[str, ...] = ()
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -161,20 +169,39 @@ class _OrbitQuantTransformerLoader:
             strict=bool(strict),
         )
         payload = _payload_with_model_index(manifest, artifact_path)
+        self._validate_target_policy(payload)
         payload["loader_target"] = self.loader_target
         return (pipeline, payload)
+
+    def _validate_target_policy(self, payload: dict[str, Any]) -> None:
+        if not self.accepted_target_policies:
+            return
+        target_policy = payload.get("target_policy")
+        if target_policy in self.accepted_target_policies:
+            return
+        accepted = ", ".join(self.accepted_target_policies)
+        raise ValueError(
+            f"{self.display_name} expected an artifact with target_policy in "
+            f"[{accepted}], got {target_policy!r} from {payload.get('source_model_id')!r}."
+        )
 
 
 class OrbitQuantFluxLoader(_OrbitQuantTransformerLoader):
     loader_target = "flux"
+    display_name = "OrbitQuant FLUX Loader"
+    accepted_target_policies = ("flux", "flux2")
 
 
 class OrbitQuantZImageLoader(_OrbitQuantTransformerLoader):
     loader_target = "z_image"
+    display_name = "OrbitQuant Z-Image Loader"
+    accepted_target_policies = ("z_image",)
 
 
 class OrbitQuantWanLoader(_OrbitQuantTransformerLoader):
     loader_target = "wan"
+    display_name = "OrbitQuant Wan Loader"
+    accepted_target_policies = ("wan",)
 
 
 NODE_CLASS_MAPPINGS = {
