@@ -30,8 +30,7 @@ cd ComfyUI/custom_nodes
 git clone git@github.com:iamwavecut/ComfyUI-OrbitQuant.git
 ```
 
-Install `orbitquant` into the Python environment used by ComfyUI. For the
-current private branch:
+Install `orbitquant` into the Python environment used by ComfyUI:
 
 ```bash
 python -m pip install "orbitquant @ git+ssh://git@github.com/iamwavecut/OrbitQuant.git@orbitquant-mvp"
@@ -83,7 +82,20 @@ module counts.
 
 ## Python API
 
-The nodes use these OrbitQuant APIs directly:
+The node classes can also be called from Python when building a custom ComfyUI
+workflow wrapper:
+
+```python
+from comfyui_orbitquant.nodes import OrbitQuantFluxLoader
+
+pipeline, info = OrbitQuantFluxLoader().load(
+    pipeline,
+    "/models/orbitquant/flux2-klein-w4a4",
+    True,
+)
+```
+
+The nodes delegate artifact parsing and component loading to OrbitQuant:
 
 ```python
 from orbitquant.artifacts import OrbitQuantManifest, validate_orbitquant_artifact
