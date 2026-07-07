@@ -1,6 +1,8 @@
+import asyncio
 import importlib.util
+import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -36,6 +38,102 @@ def test_root_init_exposes_comfyui_node_mappings():
     spec.loader.exec_module(module)
 
     assert "OrbitQuantArtifactInspector" in module.NODE_CLASS_MAPPINGS
+    assert callable(module.comfy_entrypoint)
+
+
+def _install_fake_comfy_api(monkeypatch):
+    class FakeComfyExtension:
+        pass
+
+    class FakeComfyNode:
+        pass
+
+    class FakeSchema:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class FakeNodeOutput:
+        def __init__(self, *values, ui=None):
+            self.values = values
+            self.ui = ui
+
+    class FakeType:
+        def __init__(self, type_name):
+            self.type_name = type_name
+
+        def Input(self, name, **kwargs):
+            return {"kind": "input", "type": self.type_name, "name": name, **kwargs}
+
+        def Output(self, **kwargs):
+            return {"kind": "output", "type": self.type_name, **kwargs}
+
+    fake_io = SimpleNamespace(
+        ComfyNode=FakeComfyNode,
+        Schema=FakeSchema,
+        NodeOutput=FakeNodeOutput,
+        String=FakeType("STRING"),
+        Boolean=FakeType("BOOLEAN"),
+        Combo=FakeType("COMBO"),
+        Custom=lambda type_name: FakeType(type_name),
+    )
+    fake_latest = ModuleType("comfy_api.latest")
+    fake_latest.ComfyExtension = FakeComfyExtension
+    fake_latest.io = fake_io
+    fake_api = ModuleType("comfy_api")
+    fake_api.latest = fake_latest
+    monkeypatch.setitem(sys.modules, "comfy_api", fake_api)
+    monkeypatch.setitem(sys.modules, "comfy_api.latest", fake_latest)
+    sys.modules.pop("comfyui_orbitquant.v3", None)
+
+
+def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
+    _install_fake_comfy_api(monkeypatch)
+    v3 = importlib.import_module("comfyui_orbitquant.v3")
+
+    extension = asyncio.run(v3.comfy_entrypoint())
+    node_list = asyncio.run(extension.get_node_list())
+    schema = v3.OrbitQuantPipelineComponentLoaderV3.define_schema()
+
+    assert [node.__name__ for node in node_list] == [
+        "OrbitQuantArtifactInspectorV3",
+        "OrbitQuantPipelineComponentLoaderV3",
+        "OrbitQuantFluxLoaderV3",
+        "OrbitQuantZImageLoaderV3",
+        "OrbitQuantWanLoaderV3",
+    ]
+    assert schema.kwargs["node_id"] == "OrbitQuantPipelineComponentLoader"
+    assert schema.kwargs["display_name"] == "OrbitQuant Pipeline Component Loader"
+    assert schema.kwargs["category"] == "OrbitQuant"
+    assert [output["type"] for output in schema.kwargs["outputs"]] == [
+        "PIPELINE",
+        "ORBITQUANT_INFO",
+    ]
+
+
+def test_v3_nodes_delegate_to_legacy_implementations(monkeypatch):
+    _install_fake_comfy_api(monkeypatch)
+    v3 = importlib.import_module("comfyui_orbitquant.v3")
+    pipeline = object()
+
+    monkeypatch.setattr(
+        nodes.OrbitQuantArtifactInspector,
+        "inspect",
+        lambda self, artifact_path: (f"summary:{artifact_path}", {"artifact_path": artifact_path}),
+    )
+    monkeypatch.setattr(
+        nodes.OrbitQuantFluxLoader,
+        "load",
+        lambda self, pipeline_arg, artifact_path, strict: (
+            pipeline_arg,
+            {"artifact_path": artifact_path, "strict": strict},
+        ),
+    )
+
+    inspect_output = v3.OrbitQuantArtifactInspectorV3.execute("/tmp/artifact")
+    load_output = v3.OrbitQuantFluxLoaderV3.execute(pipeline, "/tmp/flux", True)
+
+    assert inspect_output.values == ("summary:/tmp/artifact", {"artifact_path": "/tmp/artifact"})
+    assert load_output.values == (pipeline, {"artifact_path": "/tmp/flux", "strict": True})
 
 
 def test_inspector_reports_manifest_and_validation(monkeypatch, tmp_path):
