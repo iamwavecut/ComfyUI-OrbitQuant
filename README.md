@@ -30,10 +30,17 @@ cd ComfyUI/custom_nodes
 git clone git@github.com:iamwavecut/ComfyUI-OrbitQuant.git
 ```
 
-Install `orbitquant` into the Python environment used by ComfyUI:
+Install the `orbitquant` package into the Python environment used by ComfyUI.
+Use the released package when available:
 
 ```bash
-python -m pip install "orbitquant @ git+ssh://git@github.com/iamwavecut/OrbitQuant.git@orbitquant-mvp"
+python -m pip install orbitquant
+```
+
+For a source checkout, install the package from the local OrbitQuant repository:
+
+```bash
+python -m pip install -e /path/to/OrbitQuant
 ```
 
 Restart ComfyUI after installation.
@@ -82,15 +89,29 @@ module counts.
 
 ## Python API
 
-The node classes can also be called from Python when building a custom ComfyUI
-workflow wrapper:
+The node classes can also be called directly from Python when building a custom
+ComfyUI workflow wrapper.
+
+Inspect an artifact:
+
+```python
+from comfyui_orbitquant.nodes import OrbitQuantArtifactInspector
+
+summary, info = OrbitQuantArtifactInspector().inspect(
+    "/models/orbitquant/flux1-schnell-w4a4"
+)
+print(summary)
+print(info["target_policy"])
+```
+
+Attach a FLUX-family transformer artifact to an existing pipeline object:
 
 ```python
 from comfyui_orbitquant.nodes import OrbitQuantFluxLoader
 
 pipeline, info = OrbitQuantFluxLoader().load(
     pipeline,
-    "/models/orbitquant/flux2-klein-w4a4",
+    "/models/orbitquant/flux1-schnell-w4a4",
     True,
 )
 ```
