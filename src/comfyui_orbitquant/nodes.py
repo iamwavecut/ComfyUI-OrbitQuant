@@ -4,13 +4,47 @@ import json
 from pathlib import Path
 from typing import Any
 
-from orbitquant.artifacts import OrbitQuantManifest, validate_orbitquant_artifact
-from orbitquant.pipeline import load_quantized_pipeline_component
+
+def _missing_orbitquant_error() -> RuntimeError:
+    return RuntimeError(
+        "ComfyUI-OrbitQuant requires the orbitquant package. Install OrbitQuant "
+        "into the Python environment used by ComfyUI before using this node."
+    )
 
 
-def read_manifest(artifact_path: str | Path) -> OrbitQuantManifest:
+def _orbitquant_manifest_cls() -> Any:
+    try:
+        from orbitquant.artifacts import OrbitQuantManifest
+    except ImportError as exc:
+        raise _missing_orbitquant_error() from exc
+    return OrbitQuantManifest
+
+
+def validate_orbitquant_artifact(artifact_path: str | Path) -> dict[str, Any]:
+    try:
+        from orbitquant.artifacts import validate_orbitquant_artifact as validate
+    except ImportError as exc:
+        raise _missing_orbitquant_error() from exc
+    return validate(artifact_path)
+
+
+def load_quantized_pipeline_component(
+    pipeline: Any,
+    artifact_path: str | Path,
+    *,
+    component: str,
+    strict: bool,
+) -> Any:
+    try:
+        from orbitquant.pipeline import load_quantized_pipeline_component as load_component
+    except ImportError as exc:
+        raise _missing_orbitquant_error() from exc
+    return load_component(pipeline, artifact_path, component=component, strict=strict)
+
+
+def read_manifest(artifact_path: str | Path) -> Any:
     path = Path(artifact_path)
-    return OrbitQuantManifest.from_dict(
+    return _orbitquant_manifest_cls().from_dict(
         json.loads((path / "orbitquant_manifest.json").read_text(encoding="utf-8"))
     )
 

@@ -28,6 +28,16 @@ def test_node_mappings_expose_loader_and_inspector():
     )
 
 
+def test_missing_orbitquant_dependency_message_is_actionable(monkeypatch):
+    def raise_missing_dependency():
+        raise nodes._missing_orbitquant_error()
+
+    monkeypatch.setattr(nodes, "_orbitquant_manifest_cls", raise_missing_dependency)
+
+    with pytest.raises(RuntimeError, match="Install OrbitQuant"):
+        nodes.read_manifest("/tmp/orbitquant-artifact")
+
+
 def test_root_init_exposes_comfyui_node_mappings():
     root_init = Path(__file__).resolve().parents[1] / "__init__.py"
     spec = importlib.util.spec_from_file_location("comfyui_orbitquant_root", root_init)
