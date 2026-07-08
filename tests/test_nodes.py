@@ -5,20 +5,39 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 import pytest
-import torch
-from orbitquant import OrbitQuantConfig
-from orbitquant.layers import OrbitQuantLinear
-from orbitquant.pipeline import quantize_pipeline, save_quantized_pipeline_component
 
 import comfyui_orbitquant.nodes as nodes
 
 
-class TinyPipeline:
-    def __init__(self):
-        self.transformer = torch.nn.Module()
-        self.transformer.transformer_blocks = torch.nn.ModuleList(
-            [torch.nn.ModuleDict({"attn": torch.nn.ModuleDict({"to_q": torch.nn.Linear(8, 8)})})]
-        )
+def _orbitquant_runtime():
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("orbitquant")
+    from orbitquant import OrbitQuantConfig
+    from orbitquant.layers import OrbitQuantLinear
+    from orbitquant.pipeline import quantize_pipeline, save_quantized_pipeline_component
+
+    return (
+        torch,
+        OrbitQuantConfig,
+        OrbitQuantLinear,
+        quantize_pipeline,
+        save_quantized_pipeline_component,
+    )
+
+
+def _tiny_pipeline(torch):
+    class TinyPipeline:
+        def __init__(self):
+            self.transformer = torch.nn.Module()
+            self.transformer.transformer_blocks = torch.nn.ModuleList(
+                [
+                    torch.nn.ModuleDict(
+                        {"attn": torch.nn.ModuleDict({"to_q": torch.nn.Linear(8, 8)})}
+                    )
+                ]
+            )
+
+    return TinyPipeline()
 
 
 def test_node_mappings_expose_loader_and_inspector():
@@ -299,7 +318,14 @@ def test_loader_calls_orbitquant_pipeline_component_loader(monkeypatch, tmp_path
 
 
 def test_loader_attaches_real_orbitquant_component_artifact(tmp_path):
-    source_pipeline = TinyPipeline()
+    (
+        torch,
+        OrbitQuantConfig,
+        OrbitQuantLinear,
+        quantize_pipeline,
+        save_quantized_pipeline_component,
+    ) = _orbitquant_runtime()
+    source_pipeline = _tiny_pipeline(torch)
     config = OrbitQuantConfig(
         block_size=4,
         target_policy="generic_dit",
@@ -318,7 +344,7 @@ def test_loader_attaches_real_orbitquant_component_artifact(tmp_path):
         summary=summary,
     )
 
-    restored_pipeline = TinyPipeline()
+    restored_pipeline = _tiny_pipeline(torch)
     returned_pipeline, payload = nodes.OrbitQuantPipelineComponentLoader().load(
         restored_pipeline,
         str(tmp_path),
@@ -341,7 +367,14 @@ def test_loader_attaches_real_orbitquant_component_artifact(tmp_path):
 
 
 def test_node_graph_smoke_inspects_then_loads_real_orbitquant_artifact(tmp_path):
-    source_pipeline = TinyPipeline()
+    (
+        torch,
+        OrbitQuantConfig,
+        OrbitQuantLinear,
+        quantize_pipeline,
+        save_quantized_pipeline_component,
+    ) = _orbitquant_runtime()
+    source_pipeline = _tiny_pipeline(torch)
     config = OrbitQuantConfig(
         block_size=4,
         target_policy="generic_dit",
@@ -361,7 +394,7 @@ def test_node_graph_smoke_inspects_then_loads_real_orbitquant_artifact(tmp_path)
     )
 
     inspect_summary, inspect_info = nodes.OrbitQuantArtifactInspector().inspect(str(tmp_path))
-    restored_pipeline = TinyPipeline()
+    restored_pipeline = _tiny_pipeline(torch)
     loaded_pipeline, load_info = nodes.OrbitQuantPipelineComponentLoader().load(
         restored_pipeline,
         str(tmp_path),
