@@ -5,8 +5,20 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 import pytest
+import torch
+from orbitquant import OrbitQuantConfig
+from orbitquant.layers import OrbitQuantLinear
+from orbitquant.pipeline import quantize_pipeline, save_quantized_pipeline_component
 
 import comfyui_orbitquant.nodes as nodes
+
+
+class TinyPipeline:
+    def __init__(self):
+        self.transformer = torch.nn.Module()
+        self.transformer.transformer_blocks = torch.nn.ModuleList(
+            [torch.nn.ModuleDict({"attn": torch.nn.ModuleDict({"to_q": torch.nn.Linear(8, 8)})})]
+        )
 
 
 def test_node_mappings_expose_loader_and_inspector():
@@ -273,6 +285,48 @@ def test_loader_calls_orbitquant_pipeline_component_loader(monkeypatch, tmp_path
     assert payload["source_model_id"] == "example/model"
     assert payload["bits"] == "W4A4"
     assert payload["requested_runtime_mode"] == "auto_fused"
+    assert payload["requested_activation_kernel_backend"] == "auto"
+
+
+def test_loader_attaches_real_orbitquant_component_artifact(tmp_path):
+    source_pipeline = TinyPipeline()
+    config = OrbitQuantConfig(
+        block_size=4,
+        target_policy="generic_dit",
+        runtime_mode="dequant_bf16",
+        activation_kernel_backend="cpu",
+    )
+    summary = quantize_pipeline(source_pipeline, config, component="transformer")
+    save_quantized_pipeline_component(
+        source_pipeline,
+        tmp_path,
+        config=config,
+        component="transformer",
+        source_model_id="example/model",
+        source_revision="abc123",
+        source_license="apache-2.0",
+        summary=summary,
+    )
+
+    restored_pipeline = TinyPipeline()
+    returned_pipeline, payload = nodes.OrbitQuantPipelineComponentLoader().load(
+        restored_pipeline,
+        str(tmp_path),
+        "transformer",
+        True,
+        "debug_no_activation_quant",
+        "auto",
+    )
+
+    restored_layer = returned_pipeline.transformer.transformer_blocks[0]["attn"]["to_q"]
+    assert returned_pipeline is restored_pipeline
+    assert isinstance(restored_layer, OrbitQuantLinear)
+    assert restored_layer.runtime_mode == "debug_no_activation_quant"
+    assert restored_layer.activation_kernel_backend == "auto"
+    assert torch.isfinite(restored_layer(torch.randn(1, 2, 8))).all()
+    assert payload["source_model_id"] == "example/model"
+    assert payload["artifact_component"] == "transformer"
+    assert payload["requested_runtime_mode"] == "debug_no_activation_quant"
     assert payload["requested_activation_kernel_backend"] == "auto"
 
 
