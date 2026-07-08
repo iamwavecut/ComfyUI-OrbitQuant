@@ -330,6 +330,50 @@ def test_loader_attaches_real_orbitquant_component_artifact(tmp_path):
     assert payload["requested_activation_kernel_backend"] == "auto"
 
 
+def test_node_graph_smoke_inspects_then_loads_real_orbitquant_artifact(tmp_path):
+    source_pipeline = TinyPipeline()
+    config = OrbitQuantConfig(
+        block_size=4,
+        target_policy="generic_dit",
+        runtime_mode="dequant_bf16",
+        activation_kernel_backend="cpu",
+    )
+    summary = quantize_pipeline(source_pipeline, config, component="transformer")
+    save_quantized_pipeline_component(
+        source_pipeline,
+        tmp_path,
+        config=config,
+        component="transformer",
+        source_model_id="example/model",
+        source_revision="abc123",
+        source_license="apache-2.0",
+        summary=summary,
+    )
+
+    inspect_summary, inspect_info = nodes.OrbitQuantArtifactInspector().inspect(str(tmp_path))
+    restored_pipeline = TinyPipeline()
+    loaded_pipeline, load_info = nodes.OrbitQuantPipelineComponentLoader().load(
+        restored_pipeline,
+        str(tmp_path),
+        "transformer",
+        True,
+        "debug_no_activation_quant",
+        "auto",
+    )
+
+    restored_layer = loaded_pipeline.transformer.transformer_blocks[0]["attn"]["to_q"]
+    assert "example/model" in inspect_summary
+    assert inspect_info["valid"] is True
+    assert inspect_info["artifact_component"] == "transformer"
+    assert inspect_info["quantized_module_count"] == 1
+    assert load_info["source_model_id"] == inspect_info["source_model_id"]
+    assert load_info["artifact_component"] == inspect_info["artifact_component"]
+    assert load_info["quantized_module_count"] == inspect_info["quantized_module_count"]
+    assert load_info["requested_runtime_mode"] == "debug_no_activation_quant"
+    assert isinstance(restored_layer, OrbitQuantLinear)
+    assert torch.isfinite(restored_layer(torch.randn(1, 2, 8))).all()
+
+
 def test_loader_input_types_default_to_auto_fused_runtime():
     pipeline_inputs = nodes.OrbitQuantPipelineComponentLoader.INPUT_TYPES()["required"]
     flux_inputs = nodes.OrbitQuantFluxLoader.INPUT_TYPES()["required"]
