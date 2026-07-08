@@ -232,6 +232,7 @@ def test_specialized_loaders_load_transformer_component(monkeypatch, tmp_path, l
         calls.append((pipeline_arg, Path(artifact_arg), component, strict))
         return manifest
 
+    monkeypatch.setattr(nodes, "read_manifest", lambda artifact_arg: manifest)
     monkeypatch.setattr(nodes, "load_quantized_pipeline_component", fake_loader)
 
     returned_pipeline, payload = loader_cls()().load(pipeline, str(artifact_dir), True)
@@ -253,6 +254,11 @@ def test_flux_loader_accepts_flux2_artifacts(monkeypatch, tmp_path):
         target_policy="flux2",
     )
 
+    monkeypatch.setattr(
+        nodes,
+        "read_manifest",
+        lambda artifact_arg: manifest,
+    )
     monkeypatch.setattr(
         nodes,
         "load_quantized_pipeline_component",
@@ -279,14 +285,18 @@ def test_specialized_loader_rejects_mismatched_target_policy(monkeypatch, tmp_pa
         target_policy="wan",
     )
 
-    monkeypatch.setattr(
-        nodes,
-        "load_quantized_pipeline_component",
-        lambda pipeline_arg, artifact_arg, *, component, strict: manifest,
-    )
+    calls = []
+
+    def fail_loader(pipeline_arg, artifact_arg, *, component, strict):
+        calls.append((pipeline_arg, artifact_arg, component, strict))
+        raise AssertionError("mismatched artifact should be rejected before loading")
+
+    monkeypatch.setattr(nodes, "read_manifest", lambda artifact_arg: manifest)
+    monkeypatch.setattr(nodes, "load_quantized_pipeline_component", fail_loader)
 
     with pytest.raises(ValueError, match="OrbitQuant FLUX Loader"):
         nodes.OrbitQuantFluxLoader().load(pipeline, str(artifact_dir), True)
+    assert calls == []
 
 
 def test_loader_rejects_empty_artifact_path():

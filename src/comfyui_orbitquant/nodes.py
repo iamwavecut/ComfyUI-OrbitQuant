@@ -162,6 +162,8 @@ class _OrbitQuantTransformerLoader:
     def load(self, pipeline: Any, artifact_path: str, strict: bool):
         if not artifact_path:
             raise ValueError("artifact_path must not be empty")
+        preflight_payload = _payload_with_model_index(read_manifest(artifact_path), artifact_path)
+        self._validate_target_policy(preflight_payload)
         manifest = load_quantized_pipeline_component(
             pipeline,
             artifact_path,
