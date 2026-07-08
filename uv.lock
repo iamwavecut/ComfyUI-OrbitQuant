@@ -659,7 +659,7 @@ wheels = [
 [[package]]
 name = "orbitquant"
 version = "0.1.0"
-source = { git = "ssh://git@github.com/iamwavecut/OrbitQuant.git?rev=main#cf2b27fb6c71332ca1c4d3b00b2011e255fd2c75" }
+source = { git = "ssh://git@github.com/iamwavecut/OrbitQuant.git?rev=main#074ab0da6d884b0951e1aecbf54e204126c1700f" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
