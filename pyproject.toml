@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{ name = "WaveCut" }]
 dependencies = [
-  "orbitquant @ git+ssh://git@github.com/iamwavecut/OrbitQuant.git@orbitquant-mvp",
+  "orbitquant @ git+ssh://git@github.com/iamwavecut/OrbitQuant.git@main",
 ]
 
 [project.optional-dependencies]

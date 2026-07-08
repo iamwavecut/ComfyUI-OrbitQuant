@@ -4,6 +4,17 @@ import json
 from pathlib import Path
 from typing import Any
 
+RUNTIME_MODE_OPTIONS = (
+    "auto_fused",
+    "dequant_bf16",
+    "debug_no_quant",
+    "debug_no_activation_quant",
+    "triton_packed_matmul",
+    "native_packed_matmul",
+)
+
+ACTIVATION_KERNEL_BACKEND_OPTIONS = ("auto", "cpu", "mps", "triton_cuda")
+
 
 def _missing_orbitquant_error() -> RuntimeError:
     return RuntimeError(
@@ -34,12 +45,33 @@ def load_quantized_pipeline_component(
     *,
     component: str,
     strict: bool,
+    runtime_mode: str | None = None,
+    activation_kernel_backend: str | None = None,
 ) -> Any:
     try:
         from orbitquant.pipeline import load_quantized_pipeline_component as load_component
     except ImportError as exc:
         raise _missing_orbitquant_error() from exc
-    return load_component(pipeline, artifact_path, component=component, strict=strict)
+    return load_component(
+        pipeline,
+        artifact_path,
+        component=component,
+        strict=strict,
+        runtime_mode=runtime_mode,
+        activation_kernel_backend=activation_kernel_backend,
+    )
+
+
+def _validate_runtime_options(runtime_mode: str, activation_kernel_backend: str) -> None:
+    if runtime_mode not in RUNTIME_MODE_OPTIONS:
+        accepted = ", ".join(RUNTIME_MODE_OPTIONS)
+        raise ValueError(f"runtime_mode must be one of [{accepted}], got {runtime_mode!r}")
+    if activation_kernel_backend not in ACTIVATION_KERNEL_BACKEND_OPTIONS:
+        accepted = ", ".join(ACTIVATION_KERNEL_BACKEND_OPTIONS)
+        raise ValueError(
+            "activation_kernel_backend must be one of "
+            f"[{accepted}], got {activation_kernel_backend!r}"
+        )
 
 
 def read_manifest(artifact_path: str | Path) -> Any:
@@ -150,6 +182,11 @@ class OrbitQuantPipelineComponentLoader:
                     {"default": "transformer"},
                 ),
                 "strict": ("BOOLEAN", {"default": True}),
+                "runtime_mode": (list(RUNTIME_MODE_OPTIONS), {"default": "auto_fused"}),
+                "activation_kernel_backend": (
+                    list(ACTIVATION_KERNEL_BACKEND_OPTIONS),
+                    {"default": "auto"},
+                ),
             }
         }
 
@@ -158,16 +195,30 @@ class OrbitQuantPipelineComponentLoader:
     FUNCTION = "load"
     CATEGORY = "OrbitQuant"
 
-    def load(self, pipeline: Any, artifact_path: str, component: str, strict: bool):
+    def load(
+        self,
+        pipeline: Any,
+        artifact_path: str,
+        component: str,
+        strict: bool,
+        runtime_mode: str = "auto_fused",
+        activation_kernel_backend: str = "auto",
+    ):
         if not artifact_path:
             raise ValueError("artifact_path must not be empty")
+        _validate_runtime_options(runtime_mode, activation_kernel_backend)
         manifest = load_quantized_pipeline_component(
             pipeline,
             artifact_path,
             component=component,
             strict=bool(strict),
+            runtime_mode=runtime_mode,
+            activation_kernel_backend=activation_kernel_backend,
         )
-        return (pipeline, _payload_with_model_index(manifest, artifact_path))
+        payload = _payload_with_model_index(manifest, artifact_path)
+        payload["requested_runtime_mode"] = runtime_mode
+        payload["requested_activation_kernel_backend"] = activation_kernel_backend
+        return (pipeline, payload)
 
 
 class _OrbitQuantTransformerLoader:
@@ -185,6 +236,11 @@ class _OrbitQuantTransformerLoader:
                     {"default": "", "multiline": False},
                 ),
                 "strict": ("BOOLEAN", {"default": True}),
+                "runtime_mode": (list(RUNTIME_MODE_OPTIONS), {"default": "auto_fused"}),
+                "activation_kernel_backend": (
+                    list(ACTIVATION_KERNEL_BACKEND_OPTIONS),
+                    {"default": "auto"},
+                ),
             }
         }
 
@@ -193,9 +249,17 @@ class _OrbitQuantTransformerLoader:
     FUNCTION = "load"
     CATEGORY = "OrbitQuant"
 
-    def load(self, pipeline: Any, artifact_path: str, strict: bool):
+    def load(
+        self,
+        pipeline: Any,
+        artifact_path: str,
+        strict: bool,
+        runtime_mode: str = "auto_fused",
+        activation_kernel_backend: str = "auto",
+    ):
         if not artifact_path:
             raise ValueError("artifact_path must not be empty")
+        _validate_runtime_options(runtime_mode, activation_kernel_backend)
         preflight_payload = _payload_with_model_index(read_manifest(artifact_path), artifact_path)
         self._validate_target_policy(preflight_payload)
         manifest = load_quantized_pipeline_component(
@@ -203,10 +267,14 @@ class _OrbitQuantTransformerLoader:
             artifact_path,
             component="transformer",
             strict=bool(strict),
+            runtime_mode=runtime_mode,
+            activation_kernel_backend=activation_kernel_backend,
         )
         payload = _payload_with_model_index(manifest, artifact_path)
         self._validate_target_policy(payload)
         payload["loader_target"] = self.loader_target
+        payload["requested_runtime_mode"] = runtime_mode
+        payload["requested_activation_kernel_backend"] = activation_kernel_backend
         return (pipeline, payload)
 
     def _validate_target_policy(self, payload: dict[str, Any]) -> None:

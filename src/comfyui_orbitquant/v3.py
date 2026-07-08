@@ -44,6 +44,24 @@ def _strict_input() -> Any:
     )
 
 
+def _runtime_mode_input() -> Any:
+    return io.Combo.Input(
+        "runtime_mode",
+        options=list(nodes.RUNTIME_MODE_OPTIONS),
+        default="auto_fused",
+        tooltip="OrbitQuant runtime mode used when loading the artifact.",
+    )
+
+
+def _activation_kernel_backend_input() -> Any:
+    return io.Combo.Input(
+        "activation_kernel_backend",
+        options=list(nodes.ACTIVATION_KERNEL_BACKEND_OPTIONS),
+        default="auto",
+        tooltip="Activation quantization kernel backend requested from OrbitQuant.",
+    )
+
+
 class OrbitQuantArtifactInspectorV3(io.ComfyNode):
     @classmethod
     def define_schema(cls) -> io.Schema:
@@ -83,6 +101,8 @@ class OrbitQuantPipelineComponentLoaderV3(io.ComfyNode):
                     tooltip="Pipeline attribute that receives the quantized component.",
                 ),
                 _strict_input(),
+                _runtime_mode_input(),
+                _activation_kernel_backend_input(),
             ],
             outputs=[
                 _pipeline_output(),
@@ -97,12 +117,16 @@ class OrbitQuantPipelineComponentLoaderV3(io.ComfyNode):
         artifact_path: str,
         component: str,
         strict: bool,
+        runtime_mode: str,
+        activation_kernel_backend: str,
     ) -> io.NodeOutput:
         loaded_pipeline, info = nodes.OrbitQuantPipelineComponentLoader().load(
             pipeline,
             artifact_path,
             component,
             strict,
+            runtime_mode,
+            activation_kernel_backend,
         )
         return io.NodeOutput(loaded_pipeline, info)
 
@@ -124,6 +148,8 @@ class _OrbitQuantTransformerLoaderV3(io.ComfyNode):
                 _pipeline_input(),
                 _artifact_path_input(),
                 _strict_input(),
+                _runtime_mode_input(),
+                _activation_kernel_backend_input(),
             ],
             outputs=[
                 _pipeline_output(),
@@ -132,8 +158,21 @@ class _OrbitQuantTransformerLoaderV3(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, pipeline: Any, artifact_path: str, strict: bool) -> io.NodeOutput:
-        loaded_pipeline, info = cls.legacy_loader_cls().load(pipeline, artifact_path, strict)
+    def execute(
+        cls,
+        pipeline: Any,
+        artifact_path: str,
+        strict: bool,
+        runtime_mode: str,
+        activation_kernel_backend: str,
+    ) -> io.NodeOutput:
+        loaded_pipeline, info = cls.legacy_loader_cls().load(
+            pipeline,
+            artifact_path,
+            strict,
+            runtime_mode,
+            activation_kernel_backend,
+        )
         return io.NodeOutput(loaded_pipeline, info)
 
 

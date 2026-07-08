@@ -65,7 +65,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "orbitquant", git = "ssh://git@github.com/iamwavecut/OrbitQuant.git?rev=orbitquant-mvp" },
+    { name = "orbitquant", git = "ssh://git@github.com/iamwavecut/OrbitQuant.git?rev=main" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12" },
 ]
@@ -659,7 +659,7 @@ wheels = [
 [[package]]
 name = "orbitquant"
 version = "0.1.0"
-source = { git = "ssh://git@github.com/iamwavecut/OrbitQuant.git?rev=orbitquant-mvp#9ac418cc8b032d836c687c28e4e706a4b4b7536c" }
+source = { git = "ssh://git@github.com/iamwavecut/OrbitQuant.git?rev=main#cf2b27fb6c71332ca1c4d3b00b2011e255fd2c75" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },

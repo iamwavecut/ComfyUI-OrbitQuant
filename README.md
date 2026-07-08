@@ -54,7 +54,8 @@ downloaded from Hugging Face.
 2. Add the matching OrbitQuant loader node.
 3. Set `artifact_path` to the local artifact directory.
 4. Connect the pipeline object into the loader node.
-5. Use the returned pipeline object for the downstream generation nodes.
+5. Keep `runtime_mode` at `auto_fused` for optimized packed-weight inference.
+6. Use the returned pipeline object for the downstream generation nodes.
 
 For model-specific loaders, the artifact `target_policy` is checked before the
 component is attached:
@@ -64,6 +65,15 @@ component is attached:
 | `OrbitQuant FLUX Loader` | `flux`, `flux2` |
 | `OrbitQuant Z-Image Loader` | `z_image` |
 | `OrbitQuant Wan Loader` | `wan` |
+
+### Runtime Modes
+
+`runtime_mode` defaults to `auto_fused`. On supported devices, OrbitQuant will
+use packed low-bit matmul kernels instead of materializing a full BF16/FP16
+weight matrix. `activation_kernel_backend` defaults to `auto`.
+
+Use `runtime_mode="dequant_bf16"` only as an explicit compatibility or debug
+path when packed kernels are not installed in the ComfyUI Python environment.
 
 ## Artifact Requirements
 
@@ -112,7 +122,9 @@ from comfyui_orbitquant.nodes import OrbitQuantFluxLoader
 pipeline, info = OrbitQuantFluxLoader().load(
     pipeline,
     "/models/orbitquant/flux1-schnell-w4a4",
-    True,
+    strict=True,
+    runtime_mode="auto_fused",
+    activation_kernel_backend="auto",
 )
 ```
 

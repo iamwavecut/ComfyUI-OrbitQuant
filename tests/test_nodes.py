@@ -118,6 +118,21 @@ def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
         "PIPELINE",
         "ORBITQUANT_INFO",
     ]
+    input_names = [input_spec["name"] for input_spec in schema.kwargs["inputs"]]
+    assert input_names == [
+        "pipeline",
+        "artifact_path",
+        "component",
+        "strict",
+        "runtime_mode",
+        "activation_kernel_backend",
+    ]
+    runtime_input = schema.kwargs["inputs"][4]
+    activation_input = schema.kwargs["inputs"][5]
+    assert runtime_input["options"][0] == "auto_fused"
+    assert runtime_input["default"] == "auto_fused"
+    assert activation_input["options"][0] == "auto"
+    assert activation_input["default"] == "auto"
 
 
 def test_v3_nodes_delegate_to_legacy_implementations(monkeypatch):
@@ -133,17 +148,41 @@ def test_v3_nodes_delegate_to_legacy_implementations(monkeypatch):
     monkeypatch.setattr(
         nodes.OrbitQuantFluxLoader,
         "load",
-        lambda self, pipeline_arg, artifact_path, strict: (
+        lambda self,
+        pipeline_arg,
+        artifact_path,
+        strict,
+        runtime_mode,
+        activation_kernel_backend: (
             pipeline_arg,
-            {"artifact_path": artifact_path, "strict": strict},
+            {
+                "artifact_path": artifact_path,
+                "strict": strict,
+                "runtime_mode": runtime_mode,
+                "activation_kernel_backend": activation_kernel_backend,
+            },
         ),
     )
 
     inspect_output = v3.OrbitQuantArtifactInspectorV3.execute("/tmp/artifact")
-    load_output = v3.OrbitQuantFluxLoaderV3.execute(pipeline, "/tmp/flux", True)
+    load_output = v3.OrbitQuantFluxLoaderV3.execute(
+        pipeline,
+        "/tmp/flux",
+        True,
+        "auto_fused",
+        "auto",
+    )
 
     assert inspect_output.values == ("summary:/tmp/artifact", {"artifact_path": "/tmp/artifact"})
-    assert load_output.values == (pipeline, {"artifact_path": "/tmp/flux", "strict": True})
+    assert load_output.values == (
+        pipeline,
+        {
+            "artifact_path": "/tmp/flux",
+            "strict": True,
+            "runtime_mode": "auto_fused",
+            "activation_kernel_backend": "auto",
+        },
+    )
 
 
 def test_inspector_reports_manifest_and_validation(monkeypatch, tmp_path):
@@ -199,8 +238,25 @@ def test_loader_calls_orbitquant_pipeline_component_loader(monkeypatch, tmp_path
     manifest = SimpleNamespace(source_model_id="example/model", weight_bits=4, activation_bits=4)
     calls = []
 
-    def fake_loader(pipeline_arg, artifact_arg, *, component, strict):
-        calls.append((pipeline_arg, Path(artifact_arg), component, strict))
+    def fake_loader(
+        pipeline_arg,
+        artifact_arg,
+        *,
+        component,
+        strict,
+        runtime_mode,
+        activation_kernel_backend,
+    ):
+        calls.append(
+            (
+                pipeline_arg,
+                Path(artifact_arg),
+                component,
+                strict,
+                runtime_mode,
+                activation_kernel_backend,
+            )
+        )
         return manifest
 
     monkeypatch.setattr(nodes, "load_quantized_pipeline_component", fake_loader)
@@ -213,9 +269,48 @@ def test_loader_calls_orbitquant_pipeline_component_loader(monkeypatch, tmp_path
     )
 
     assert returned_pipeline is pipeline
-    assert calls == [(pipeline, artifact_dir, "transformer", True)]
+    assert calls == [(pipeline, artifact_dir, "transformer", True, "auto_fused", "auto")]
     assert payload["source_model_id"] == "example/model"
     assert payload["bits"] == "W4A4"
+    assert payload["requested_runtime_mode"] == "auto_fused"
+    assert payload["requested_activation_kernel_backend"] == "auto"
+
+
+def test_loader_input_types_default_to_auto_fused_runtime():
+    pipeline_inputs = nodes.OrbitQuantPipelineComponentLoader.INPUT_TYPES()["required"]
+    flux_inputs = nodes.OrbitQuantFluxLoader.INPUT_TYPES()["required"]
+
+    assert pipeline_inputs["runtime_mode"][1]["default"] == "auto_fused"
+    assert pipeline_inputs["runtime_mode"][0][0] == "auto_fused"
+    assert pipeline_inputs["activation_kernel_backend"][1]["default"] == "auto"
+    assert pipeline_inputs["activation_kernel_backend"][0][0] == "auto"
+    assert flux_inputs["runtime_mode"][1]["default"] == "auto_fused"
+    assert flux_inputs["activation_kernel_backend"][1]["default"] == "auto"
+
+
+def test_loader_rejects_invalid_runtime_options(tmp_path):
+    artifact_dir = tmp_path / "artifact"
+    artifact_dir.mkdir()
+
+    with pytest.raises(ValueError, match="runtime_mode"):
+        nodes.OrbitQuantPipelineComponentLoader().load(
+            object(),
+            str(artifact_dir),
+            "transformer",
+            True,
+            "unknown",
+            "auto",
+        )
+
+    with pytest.raises(ValueError, match="activation_kernel_backend"):
+        nodes.OrbitQuantPipelineComponentLoader().load(
+            object(),
+            str(artifact_dir),
+            "transformer",
+            True,
+            "auto_fused",
+            "unknown",
+        )
 
 
 @pytest.mark.parametrize(
@@ -238,19 +333,44 @@ def test_specialized_loaders_load_transformer_component(monkeypatch, tmp_path, l
     )
     calls = []
 
-    def fake_loader(pipeline_arg, artifact_arg, *, component, strict):
-        calls.append((pipeline_arg, Path(artifact_arg), component, strict))
+    def fake_loader(
+        pipeline_arg,
+        artifact_arg,
+        *,
+        component,
+        strict,
+        runtime_mode,
+        activation_kernel_backend,
+    ):
+        calls.append(
+            (
+                pipeline_arg,
+                Path(artifact_arg),
+                component,
+                strict,
+                runtime_mode,
+                activation_kernel_backend,
+            )
+        )
         return manifest
 
     monkeypatch.setattr(nodes, "read_manifest", lambda artifact_arg: manifest)
     monkeypatch.setattr(nodes, "load_quantized_pipeline_component", fake_loader)
 
-    returned_pipeline, payload = loader_cls()().load(pipeline, str(artifact_dir), True)
+    returned_pipeline, payload = loader_cls()().load(
+        pipeline,
+        str(artifact_dir),
+        True,
+        "native_packed_matmul",
+        "mps",
+    )
 
     assert returned_pipeline is pipeline
-    assert calls == [(pipeline, artifact_dir, "transformer", True)]
+    assert calls == [(pipeline, artifact_dir, "transformer", True, "native_packed_matmul", "mps")]
     assert payload["loader_target"] == target
     assert payload["bits"] == "W4A4"
+    assert payload["requested_runtime_mode"] == "native_packed_matmul"
+    assert payload["requested_activation_kernel_backend"] == "mps"
 
 
 def test_flux_loader_accepts_flux2_artifacts(monkeypatch, tmp_path):
@@ -272,7 +392,13 @@ def test_flux_loader_accepts_flux2_artifacts(monkeypatch, tmp_path):
     monkeypatch.setattr(
         nodes,
         "load_quantized_pipeline_component",
-        lambda pipeline_arg, artifact_arg, *, component, strict: manifest,
+        lambda pipeline_arg,
+        artifact_arg,
+        *,
+        component,
+        strict,
+        runtime_mode,
+        activation_kernel_backend: manifest,
     )
 
     returned_pipeline, payload = nodes.OrbitQuantFluxLoader().load(
@@ -297,8 +423,25 @@ def test_specialized_loader_rejects_mismatched_target_policy(monkeypatch, tmp_pa
 
     calls = []
 
-    def fail_loader(pipeline_arg, artifact_arg, *, component, strict):
-        calls.append((pipeline_arg, artifact_arg, component, strict))
+    def fail_loader(
+        pipeline_arg,
+        artifact_arg,
+        *,
+        component,
+        strict,
+        runtime_mode,
+        activation_kernel_backend,
+    ):
+        calls.append(
+            (
+                pipeline_arg,
+                artifact_arg,
+                component,
+                strict,
+                runtime_mode,
+                activation_kernel_backend,
+            )
+        )
         raise AssertionError("mismatched artifact should be rejected before loading")
 
     monkeypatch.setattr(nodes, "read_manifest", lambda artifact_arg: manifest)
