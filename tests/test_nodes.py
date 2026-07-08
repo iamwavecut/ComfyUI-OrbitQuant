@@ -40,6 +40,16 @@ def test_node_mappings_expose_loader_and_inspector():
     )
 
 
+def test_readme_documents_kernel_extra_for_auto_fused_runtime():
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert 'runtime_mode="auto_fused"' in readme
+    assert 'python -m pip install "orbitquant[kernels]"' in readme
+    assert 'python -m pip install -e "/path/to/OrbitQuant[kernels]"' in readme
+    assert 'runtime_mode="dequant_bf16"' in readme
+    assert "packed kernels are not installed" in readme
+
+
 def test_missing_orbitquant_dependency_message_is_actionable(monkeypatch):
     def raise_missing_dependency():
         raise nodes._missing_orbitquant_error()
