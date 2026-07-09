@@ -27,7 +27,7 @@ Clone this repository into ComfyUI's custom node directory:
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone git@github.com:iamwavecut/ComfyUI-OrbitQuant.git
+git clone https://github.com/iamwavecut/ComfyUI-OrbitQuant.git
 ```
 
 Install the `orbitquant` package into the Python environment used by ComfyUI.

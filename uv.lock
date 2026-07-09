@@ -65,7 +65,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "orbitquant", git = "ssh://git@github.com/iamwavecut/OrbitQuant.git?rev=main" },
+    { name = "orbitquant", specifier = ">=0.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12" },
 ]
@@ -659,7 +659,7 @@ wheels = [
 [[package]]
 name = "orbitquant"
 version = "0.1.0"
-source = { git = "ssh://git@github.com/iamwavecut/OrbitQuant.git?rev=main#4f7efe908e8607a553494d599658f6fbbac1af70" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -668,6 +668,10 @@ dependencies = [
     { name = "safetensors" },
     { name = "torch" },
     { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c8/41/1df33fe61ff5638a0b9385bbe0493353b62cfd8f39dd1ee7481487f92ed0/orbitquant-0.1.0.tar.gz", hash = "sha256:6abedb769b32c8d70f2763278e106346319d628d85ed7469549faa5020ab1a89", size = 338958, upload-time = "2026-07-09T11:32:26.501Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3b/7d/ab3ccbad76d8cc917f4e034bded42371db846a4af7cb7403fcd155963971/orbitquant-0.1.0-py3-none-any.whl", hash = "sha256:dfbfa80ff79132457b6918d69f8ae9d8961ea3d898487d105a0e74da906eeaaa", size = 135501, upload-time = "2026-07-09T11:32:25.082Z" },
 ]
 
 [[package]]
