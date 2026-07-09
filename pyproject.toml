@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{ name = "WaveCut" }]
 dependencies = [
-  "orbitquant>=0.1.1",
+  "orbitquant>=0.1.2",
 ]
 
 [project.optional-dependencies]

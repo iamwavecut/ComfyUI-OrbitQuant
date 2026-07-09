@@ -65,7 +65,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "orbitquant", specifier = ">=0.1.1" },
+    { name = "orbitquant", specifier = ">=0.1.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12" },
 ]
@@ -658,7 +658,7 @@ wheels = [
 
 [[package]]
 name = "orbitquant"
-version = "0.1.1"
+version = "0.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -669,9 +669,9 @@ dependencies = [
     { name = "torch" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/d1/6d09797f88f8694712ea8033771d5130107eb7323a2dce95c59977e3fcb1/orbitquant-0.1.1.tar.gz", hash = "sha256:5972b6cfd1d89653fb9ac17668f72818c61a0e3cc5ea1cdd46e59d54405dc1ff", size = 349984, upload-time = "2026-07-09T13:43:49.88Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/be/53b64e0d0e899c9236b71bcdfb2005df1accd8ca39a35550b0e00ca1f64c/orbitquant-0.1.2.tar.gz", hash = "sha256:4afc15589fe713345dfa47be30dc078d943484a1f4bbd4861a413532a6ec8377", size = 354262, upload-time = "2026-07-09T14:25:58.596Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/3e/d714edf5444efbe93090e3282dcf8be96329ad4a4bdee7aacc2b52159db2/orbitquant-0.1.1-py3-none-any.whl", hash = "sha256:b829c5df00093e697872ca24104e6ef38dbe7e7d70b2c2e33560bfaec224cde1", size = 135695, upload-time = "2026-07-09T13:43:48.283Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/8c/aec6fea376836840392b83e13b63d6d1f1184e52594b5174506a251142d8/orbitquant-0.1.2-py3-none-any.whl", hash = "sha256:3bdddebaa46f60307ed50e2ebf4b7ff4fef7817845b512ecfbb6fbf8ba71c91c", size = 136038, upload-time = "2026-07-09T14:25:57.098Z" },
 ]
 
 [[package]]

@@ -34,7 +34,7 @@ Install the `orbitquant` package into the Python environment used by ComfyUI.
 Use the released package when available:
 
 ```bash
-python -m pip install orbitquant
+python -m pip install "orbitquant>=0.1.2"
 ```
 
 For the default optimized `runtime_mode="auto_fused"` path on CUDA or for
@@ -42,7 +42,7 @@ Hub-published native packed matmul kernels, install OrbitQuant with its kernel
 runtime extra:
 
 ```bash
-python -m pip install "orbitquant[kernels]"
+python -m pip install "orbitquant[kernels]>=0.1.2"
 ```
 
 For a source checkout, install the package from the local OrbitQuant repository:
