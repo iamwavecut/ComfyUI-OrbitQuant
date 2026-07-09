@@ -45,6 +45,13 @@ runtime extra:
 python -m pip install "orbitquant[kernels]>=0.1.2"
 ```
 
+If you install this node pack from PyPI, the same kernel runtime dependencies
+are available through the node pack extra:
+
+```bash
+python -m pip install "comfyui-orbitquant[kernels]"
+```
+
 For a source checkout, install the package from the local OrbitQuant repository:
 
 ```bash
