@@ -232,7 +232,7 @@ wheels = [
 
 [[package]]
 name = "comfyui-orbitquant"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "." }
 dependencies = [
     { name = "orbitquant" },
@@ -249,8 +249,8 @@ kernels = [
 
 [package.metadata]
 requires-dist = [
-    { name = "orbitquant", specifier = ">=0.1.3" },
-    { name = "orbitquant", extras = ["kernels"], marker = "extra == 'kernels'", specifier = ">=0.1.3" },
+    { name = "orbitquant", specifier = ">=0.1.4" },
+    { name = "orbitquant", extras = ["kernels"], marker = "extra == 'kernels'", specifier = ">=0.1.4" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12" },
 ]
@@ -1008,7 +1008,7 @@ wheels = [
 
 [[package]]
 name = "orbitquant"
-version = "0.1.3"
+version = "0.1.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -1019,9 +1019,9 @@ dependencies = [
     { name = "torch" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e3/ee/8bec67a3540df9f49eb8f557ebb5b64914eaeb8b3960387643df00198eaa/orbitquant-0.1.3.tar.gz", hash = "sha256:008f949641d00df46f840580c424b9e9fad0d853b4345d454a0b8042c61f3366", size = 363720, upload-time = "2026-07-09T16:44:27.222Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/76/d78a6a46f63db24c34f37369ffd03e8f05498e5246a815b77dd22ea4b80e/orbitquant-0.1.4.tar.gz", hash = "sha256:7db4168bb2e9c3b838af0a932a96ca505d7bb91475239545d3e3a4c8130e07f4", size = 367930, upload-time = "2026-07-09T17:45:17.52Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/69/21/a0cb9dc5d56ff8a38633706a26680f6d43629344f934f9e8393b44aba15b/orbitquant-0.1.3-py3-none-any.whl", hash = "sha256:181e9b532a07312ec47b54091d651b5a62d5aefd32c88d40830bd8529a0fdc53", size = 140326, upload-time = "2026-07-09T16:44:25.952Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/90/2fe64d42b0ec35434eeaa6e388b7cce324ca3453e3a056e8b8b6a338d98c/orbitquant-0.1.4-py3-none-any.whl", hash = "sha256:641a4d74a811023ff6cc39ae9680eb1393eb5e2b5dd390d586ff087ac1533af3", size = 141392, upload-time = "2026-07-09T17:45:16.243Z" },
 ]
 
 [package.optional-dependencies]
