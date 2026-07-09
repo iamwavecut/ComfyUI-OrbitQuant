@@ -45,5 +45,5 @@ jobs:
         run: |
           tmpdir="$(mktemp -d)"
           uv venv "$tmpdir/.venv"
-          uv pip install --python "$tmpdir/.venv/bin/python" --no-deps dist/comfyui_orbitquant-0.1.0-py3-none-any.whl
+          uv pip install --python "$tmpdir/.venv/bin/python" --no-deps dist/*.whl
           "$tmpdir/.venv/bin/python" -c "import comfyui_orbitquant; print(sorted(comfyui_orbitquant.NODE_CLASS_MAPPINGS))"
