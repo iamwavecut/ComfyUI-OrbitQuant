@@ -74,7 +74,7 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
 def test_pyproject_depends_on_public_orbitquant_release():
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
 
-    assert '"orbitquant>=0.1.0"' in pyproject
+    assert '"orbitquant>=0.1.1"' in pyproject
     assert "git+ssh://git@github.com/iamwavecut/OrbitQuant.git" not in pyproject
 
 
