@@ -16,7 +16,7 @@ _PIPELINE_TYPE = "PIPELINE"
 
 
 def _pipeline_input() -> Any:
-    return io.Custom(_PIPELINE_TYPE).Input("pipeline", force_input=True)
+    return io.Custom(_PIPELINE_TYPE).Input("pipeline")
 
 
 def _pipeline_output() -> Any:

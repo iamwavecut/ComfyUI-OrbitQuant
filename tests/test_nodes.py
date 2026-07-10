@@ -65,7 +65,7 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
     assert 'runtime_mode="auto_fused"' in readme
     assert "git clone https://github.com/iamwavecut/ComfyUI-OrbitQuant.git" in readme
     assert "git@github.com:iamwavecut/ComfyUI-OrbitQuant.git" not in readme
-    assert 'python -m pip install "orbitquant[kernels]>=0.1.4"' in readme
+    assert 'python -m pip install "orbitquant[kernels]>=0.2.0"' in readme
     assert 'python -m pip install "comfyui-orbitquant[kernels]"' in readme
     assert 'python -m pip install -e "/path/to/OrbitQuant[kernels]"' in readme
     assert 'runtime_mode="dequant_bf16"' in readme
@@ -75,8 +75,8 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
 def test_pyproject_depends_on_public_orbitquant_release():
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
 
-    assert '"orbitquant>=0.1.4"' in pyproject
-    assert '"orbitquant[kernels]>=0.1.4"' in pyproject
+    assert '"orbitquant>=0.2.0"' in pyproject
+    assert '"orbitquant[kernels]>=0.2.0"' in pyproject
     assert "git+ssh://git@github.com/iamwavecut/OrbitQuant.git" not in pyproject
 
 
@@ -179,6 +179,7 @@ def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
         "runtime_mode",
         "activation_kernel_backend",
     ]
+    assert "force_input" not in schema.kwargs["inputs"][0]
     runtime_input = schema.kwargs["inputs"][4]
     activation_input = schema.kwargs["inputs"][5]
     assert runtime_input["options"][0] == "auto_fused"

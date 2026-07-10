@@ -12,7 +12,7 @@ component-loading API.
 | Node | Purpose |
 | --- | --- |
 | `OrbitQuant Inspect Artifact` | Validate an OrbitQuant artifact directory and return a text summary plus structured metadata. |
-| `OrbitQuant Pipeline Component Loader` | Attach an OrbitQuant component artifact to a pipeline attribute such as `transformer`. |
+| `OrbitQuant Pipeline Component Loader` | Attach any compatible `universal` or model-specific OrbitQuant component artifact to a pipeline attribute such as `transformer`. |
 | `OrbitQuant FLUX Loader` | Attach a FLUX or FLUX.2 transformer artifact and reject non-FLUX policies. |
 | `OrbitQuant Z-Image Loader` | Attach a Z-Image transformer artifact and reject other target policies. |
 | `OrbitQuant Wan Loader` | Attach a Wan transformer artifact and reject other target policies. |
@@ -34,15 +34,16 @@ Install the `orbitquant` package into the Python environment used by ComfyUI.
 Use the released package when available:
 
 ```bash
-python -m pip install "orbitquant>=0.1.4"
+python -m pip install "orbitquant>=0.2.0"
 ```
 
-For the default optimized `runtime_mode="auto_fused"` path on CUDA or for
-Hub-published native packed matmul kernels, install OrbitQuant with its kernel
-runtime extra:
+For the default optimized `runtime_mode="auto_fused"` path on CUDA, install
+OrbitQuant with its kernel runtime extra. This provides the Triton fallback;
+the optional native CUDA or Metal package is built locally from the OrbitQuant
+source tree:
 
 ```bash
-python -m pip install "orbitquant[kernels]>=0.1.4"
+python -m pip install "orbitquant[kernels]>=0.2.0"
 ```
 
 If you install this node pack from PyPI, the same kernel runtime dependencies
@@ -86,6 +87,11 @@ component is attached:
 | `OrbitQuant FLUX Loader` | `flux`, `flux2` |
 | `OrbitQuant Z-Image Loader` | `z_image` |
 | `OrbitQuant Wan Loader` | `wan` |
+
+Use `OrbitQuant Pipeline Component Loader` for artifacts with
+`target_policy="universal"` or for future transformer components that do not
+have a specialized node. This loader validates the artifact schema without
+restricting the source architecture name.
 
 ### Runtime Modes
 
