@@ -23,27 +23,35 @@ available.
 
 ## Install
 
-Clone this repository into ComfyUI's custom node directory:
+Install through ComfyUI-Manager, or clone this repository into ComfyUI's
+custom node directory:
 
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/iamwavecut/ComfyUI-OrbitQuant.git
 ```
 
-Install the `orbitquant` package into the Python environment used by ComfyUI.
-Use the released package when available:
+ComfyUI-Manager installs `requirements.txt` (the `orbitquant` package) and then
+runs `install.py`, which provisions the optimized native kernel package for
+the current runtime by downloading the matching prebuilt variant wheel from
+the OrbitQuant GitHub release. Provisioning is best effort: when no variant
+matches the runtime, packed runtime modes fall back to OrbitQuant's Triton or
+dequantized paths and the node pack keeps working.
+
+For a manual clone, install the `orbitquant` package into the Python
+environment used by ComfyUI and provision the native kernels explicitly:
 
 ```bash
-python -m pip install "orbitquant>=0.5.0"
+python -m pip install "orbitquant>=0.6.0"
+python -m orbitquant.cli.main kernels-install
 ```
 
 For the default optimized `runtime_mode="auto_fused"` path on CUDA, install
-OrbitQuant with its kernel runtime extra. This provides the Triton fallback;
-the optional native CUDA or Metal package is built locally from the OrbitQuant
-source tree:
+OrbitQuant with its kernel runtime extra. This provides the Triton fallback
+used when no native variant matches:
 
 ```bash
-python -m pip install "orbitquant[kernels]>=0.5.0"
+python -m pip install "orbitquant[kernels]>=0.6.0"
 ```
 
 If you install this node pack from PyPI, the same kernel runtime dependencies
