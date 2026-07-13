@@ -13,7 +13,14 @@ RUNTIME_MODE_OPTIONS = (
     "native_packed_matmul",
 )
 
-ACTIVATION_KERNEL_BACKEND_OPTIONS = ("auto", "cpu", "mps", "triton_cuda")
+ACTIVATION_KERNEL_BACKEND_OPTIONS = (
+    "auto",
+    "cpu",
+    "mps",
+    "triton_cuda",
+    "triton_rocm",
+    "triton_xpu",
+)
 
 
 def _missing_orbitquant_error() -> RuntimeError:

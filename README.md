@@ -34,7 +34,7 @@ Install the `orbitquant` package into the Python environment used by ComfyUI.
 Use the released package when available:
 
 ```bash
-python -m pip install "orbitquant>=0.2.0"
+python -m pip install "orbitquant>=0.5.0"
 ```
 
 For the default optimized `runtime_mode="auto_fused"` path on CUDA, install
@@ -43,7 +43,7 @@ the optional native CUDA or Metal package is built locally from the OrbitQuant
 source tree:
 
 ```bash
-python -m pip install "orbitquant[kernels]>=0.2.0"
+python -m pip install "orbitquant[kernels]>=0.5.0"
 ```
 
 If you install this node pack from PyPI, the same kernel runtime dependencies
@@ -97,7 +97,8 @@ restricting the source architecture name.
 
 `runtime_mode` defaults to `auto_fused`. On supported devices, OrbitQuant will
 use packed low-bit matmul kernels instead of materializing a full BF16/FP16
-weight matrix. `activation_kernel_backend` defaults to `auto`.
+weight matrix. `activation_kernel_backend` defaults to `auto`; the
+`triton_rocm` and `triton_xpu` backends are experimental in OrbitQuant.
 
 Use `runtime_mode="dequant_bf16"` only as an explicit compatibility or debug
 path when packed kernels are not installed in the ComfyUI Python environment.
