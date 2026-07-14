@@ -17,10 +17,10 @@ jobs:
       contents: read
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v6.3.0
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -68,7 +68,7 @@ jobs:
           "$tmpdir/.venv/bin/python" -c "import comfyui_orbitquant; print(sorted(comfyui_orbitquant.NODE_CLASS_MAPPINGS))"
 
       - name: Upload distributions
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v7
         with:
           name: python-distributions
           path: dist/*
@@ -86,7 +86,7 @@ jobs:
       id-token: write
     steps:
       - name: Download distributions
-        uses: actions/download-artifact@v7.0.0
+        uses: actions/download-artifact@v8
         with:
           name: python-distributions
           path: dist
