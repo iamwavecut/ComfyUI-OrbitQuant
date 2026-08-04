@@ -13,7 +13,7 @@ except Exception as exc:  # pragma: no cover - exercised through lazy import tes
 _CATEGORY = "OrbitQuant"
 _INFO_TYPE = "ORBITQUANT_INFO"
 _PIPELINE_TYPE = "PIPELINE"
-_H3_RELEASE_TYPE = "ORBITQUANT_H3_RELEASE"
+_RELEASE_TYPE = "ORBITQUANT_RELEASE"
 
 
 def _pipeline_input() -> Any:
@@ -198,50 +198,48 @@ class OrbitQuantWanLoaderV3(_OrbitQuantTransformerLoaderV3):
     description = "Attach a Wan OrbitQuant transformer artifact to a pipeline."
 
 
-class OrbitQuantMiniMaxH3ReleaseLoaderV3(io.ComfyNode):
+class OrbitQuantReleaseLoaderV3(io.ComfyNode):
     @classmethod
     def define_schema(cls) -> io.Schema:
         return io.Schema(
-            node_id="OrbitQuantMiniMaxH3ReleaseLoader",
-            display_name="OrbitQuant MiniMax H3 Release Loader",
-            category=f"{_CATEGORY}/MiniMax H3",
-            description=(
-                "Validate a local MiniMax H3 OrbitQuant W4A4 multicomponent release."
-            ),
+            node_id="OrbitQuantReleaseLoader",
+            display_name="OrbitQuant Release Loader",
+            category=_CATEGORY,
+            description="Validate and route a local OrbitQuant multicomponent release.",
             inputs=[
                 io.String.Input(
                     "model_path",
                     default="",
                     multiline=False,
-                    tooltip="Local directory downloaded from the H3 OrbitQuant model repo.",
+                    tooltip="Local directory downloaded from an OrbitQuant model repo.",
                 )
             ],
             outputs=[
-                io.Custom(_H3_RELEASE_TYPE).Output("release", display_name="release"),
+                io.Custom(_RELEASE_TYPE).Output("release", display_name="release"),
                 io.String.Output("summary_json", display_name="summary_json"),
             ],
         )
 
     @classmethod
     def execute(cls, model_path: str) -> io.NodeOutput:
-        release, summary_json = nodes.OrbitQuantMiniMaxH3ReleaseLoader().load(model_path)
+        release, summary_json = nodes.OrbitQuantReleaseLoader().load(model_path)
         return io.NodeOutput(release, summary_json)
 
 
-class OrbitQuantMiniMaxH3GenerateVideoV3(io.ComfyNode):
+class OrbitQuantGenerateVideoV3(io.ComfyNode):
     @classmethod
     def define_schema(cls) -> io.Schema:
         return io.Schema(
-            node_id="OrbitQuantMiniMaxH3GenerateVideo",
-            display_name="OrbitQuant MiniMax H3 Generate Video",
-            category=f"{_CATEGORY}/MiniMax H3",
+            node_id="OrbitQuantGenerateVideo",
+            display_name="OrbitQuant Generate Video",
+            category=_CATEGORY,
             description=(
                 "Generate MiniMax H3 audio-video with durable latents, stage offload, "
                 "and source FP32 VAE decode."
             ),
             is_output_node=True,
             inputs=[
-                io.Custom(_H3_RELEASE_TYPE).Input("release"),
+                io.Custom(_RELEASE_TYPE).Input("release"),
                 io.String.Input(
                     "prompt",
                     default="",
@@ -282,7 +280,7 @@ class OrbitQuantMiniMaxH3GenerateVideoV3(io.ComfyNode):
         filename_prefix: str,
     ) -> io.NodeOutput:
         video, report_json, preview = (
-            nodes.OrbitQuantMiniMaxH3GenerateVideo().run_for_comfy(
+            nodes.OrbitQuantGenerateVideo().run_for_comfy(
                 release,
                 prompt,
                 task,
@@ -306,8 +304,8 @@ class OrbitQuantExtension(ComfyExtension):
             OrbitQuantFluxLoaderV3,
             OrbitQuantZImageLoaderV3,
             OrbitQuantWanLoaderV3,
-            OrbitQuantMiniMaxH3ReleaseLoaderV3,
-            OrbitQuantMiniMaxH3GenerateVideoV3,
+            OrbitQuantReleaseLoaderV3,
+            OrbitQuantGenerateVideoV3,
         ]
 
 

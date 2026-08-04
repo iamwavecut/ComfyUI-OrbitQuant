@@ -1,15 +1,15 @@
 {
   "1": {
-    "class_type": "OrbitQuantMiniMaxH3ReleaseLoader",
+    "class_type": "OrbitQuantReleaseLoader",
     "inputs": {
       "model_path": "/workspace/models/MiniMax-H3-OrbitQuant-W4A4"
     },
     "_meta": {
-      "title": "OrbitQuant MiniMax H3 Release Loader"
+      "title": "OrbitQuant Release Loader"
     }
   },
   "2": {
-    "class_type": "OrbitQuantMiniMaxH3GenerateVideo",
+    "class_type": "OrbitQuantGenerateVideo",
     "inputs": {
       "release": [
         "1",
@@ -26,7 +26,7 @@
       "filename_prefix": "orbitquant/minimax-h3-t2va"
     },
     "_meta": {
-      "title": "OrbitQuant MiniMax H3 Generate Video"
+      "title": "OrbitQuant Generate Video"
     }
   }
 }

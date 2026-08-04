@@ -29,6 +29,23 @@ def _make_release(tmp_path: Path) -> Path:
         ),
         encoding="utf-8",
     )
+    (release / "comfyui_orbitquant.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "adapter": "minimax_h3",
+                "media_type": "video",
+                "tasks": ["t2va", "ref2va"],
+                "defaults": {
+                    "width": 608,
+                    "height": 480,
+                    "num_frames": 124,
+                    "steps": 50,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     for component in ("transformer", "transformer_ref", "text_encoder", "vae", "audio_vae"):
         (release / component).mkdir()
     scripts = release / "scripts"
@@ -86,14 +103,15 @@ def _rewrite_manifest(release: Path, **updates) -> None:
     manifest_path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def test_release_loader_returns_descriptor_and_json_summary(tmp_path):
+def test_generic_release_loader_routes_from_config_and_returns_summary(tmp_path):
     release_path = _make_release(tmp_path)
 
-    release, summary_json = minimax_h3.OrbitQuantMiniMaxH3ReleaseLoader().load(
+    release, summary_json = minimax_h3.OrbitQuantReleaseLoader().load(
         str(release_path)
     )
 
-    assert isinstance(release, minimax_h3.MiniMaxH3Release)
+    assert isinstance(release, minimax_h3.OrbitQuantRelease)
+    assert release.adapter == "minimax_h3"
     summary = json.loads(summary_json)
     assert summary["repo_id"] == "WaveCut/MiniMax-H3-OrbitQuant-W4A4"
     assert summary["bits"] == "W4A4"
@@ -201,6 +219,8 @@ def test_runner_adds_ref2va_reference_and_rejects_missing_reference(tmp_path, mo
     generation = commands[0]
     assert generation[generation.index("--task") + 1] == "ref2va"
     assert generation[generation.index("--reference") + 1] == str(reference.resolve())
+    assert "--manual-stage-offload" not in generation
+    assert generation[generation.index("--offload-reserve-margin") + 1] == "64GB"
 
     with pytest.raises(ValueError, match="reference"):
         runner.run(
@@ -258,16 +278,18 @@ def test_runner_rejects_frame_counts_below_h3_five_second_minimum(tmp_path):
         )
 
 
-def test_legacy_node_mappings_expose_h3_loader_and_generator():
-    assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantMiniMaxH3ReleaseLoader"] is (
-        minimax_h3.OrbitQuantMiniMaxH3ReleaseLoader
+def test_legacy_node_mappings_expose_only_generic_release_nodes():
+    assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantReleaseLoader"] is (
+        minimax_h3.OrbitQuantReleaseLoader
     )
-    assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantMiniMaxH3GenerateVideo"] is (
-        minimax_h3.OrbitQuantMiniMaxH3GenerateVideo
+    assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantGenerateVideo"] is (
+        minimax_h3.OrbitQuantGenerateVideo
     )
-    assert nodes.NODE_DISPLAY_NAME_MAPPINGS["OrbitQuantMiniMaxH3GenerateVideo"] == (
-        "OrbitQuant MiniMax H3 Generate Video"
+    assert nodes.NODE_DISPLAY_NAME_MAPPINGS["OrbitQuantGenerateVideo"] == (
+        "OrbitQuant Generate Video"
     )
+    assert "OrbitQuantMiniMaxH3ReleaseLoader" not in nodes.NODE_CLASS_MAPPINGS
+    assert "OrbitQuantMiniMaxH3GenerateVideo" not in nodes.NODE_CLASS_MAPPINGS
 
 
 def test_generator_node_returns_standard_video_and_preview(tmp_path, monkeypatch):
@@ -315,8 +337,9 @@ def test_generator_node_returns_standard_video_and_preview(tmp_path, monkeypatch
 
     monkeypatch.setattr(minimax_h3.MiniMaxH3Runner, "run", fake_run)
 
-    response = minimax_h3.OrbitQuantMiniMaxH3GenerateVideo().generate(
-        release,
+    generic_release = minimax_h3.OrbitQuantRelease.from_path(release.path)
+    response = minimax_h3.OrbitQuantGenerateVideo().generate(
+        generic_release,
         "dynamic dolly zoom",
         "t2va",
         "",

@@ -14,6 +14,8 @@ REQUIRED_SCRIPTS = {
     "generator": Path("scripts/run_quantized_example.py"),
     "decoder": Path("scripts/decode_h3_latents.py"),
 }
+RELEASE_CONFIG = Path("comfyui_orbitquant.json")
+SUPPORTED_ADAPTERS = frozenset({"minimax_h3"})
 
 
 def _read_json(path: Path, label: str) -> dict[str, Any]:
@@ -106,8 +108,54 @@ class MiniMaxH3Release:
             "bits": self.bits,
             "w4a4_components": list(self.w4a4_components),
             "source_precision_components": list(self.source_precision_components),
-            "offload_policy": "text_encoder_cuda_then_cpu_transformer_cpu_then_cuda",
+            "offload_policy": "t2va_manual_stage_ref2va_components_manager_auto",
             "vae_policy": "source_precision_fp32_decode",
+        }
+
+
+@dataclass(frozen=True)
+class OrbitQuantRelease:
+    """Model-agnostic ComfyUI release handle routed by a checked adapter id."""
+
+    path: Path
+    config: dict[str, Any]
+    implementation: MiniMaxH3Release
+
+    @classmethod
+    def from_path(cls, model_path: str | Path) -> OrbitQuantRelease:
+        if not str(model_path).strip():
+            raise ValueError("OrbitQuant release path must not be empty")
+        path = Path(model_path).expanduser().resolve()
+        if not path.is_dir():
+            raise ValueError(f"OrbitQuant release directory does not exist: {path}")
+
+        config = _read_json(path / RELEASE_CONFIG, "ComfyUI release config")
+        if config.get("schema_version") != 1:
+            raise ValueError("ComfyUI release config schema_version must be 1")
+        adapter = config.get("adapter")
+        if adapter not in SUPPORTED_ADAPTERS:
+            accepted = ", ".join(sorted(SUPPORTED_ADAPTERS))
+            raise ValueError(
+                f"ComfyUI release adapter must be one of [{accepted}], got {adapter!r}"
+            )
+        if config.get("media_type") != "video":
+            raise ValueError("ComfyUI release media_type must be 'video'")
+
+        implementation = MiniMaxH3Release.from_path(path)
+        return cls(path=path, config=config, implementation=implementation)
+
+    @property
+    def adapter(self) -> str:
+        return str(self.config["adapter"])
+
+    @property
+    def summary(self) -> dict[str, Any]:
+        return {
+            **self.implementation.summary,
+            "adapter": self.adapter,
+            "media_type": self.config["media_type"],
+            "tasks": list(self.config.get("tasks", [])),
+            "defaults": dict(self.config.get("defaults", {})),
         }
 
 
@@ -229,10 +277,13 @@ class MiniMaxH3Runner:
             str(num_frames),
             "--steps",
             str(steps),
-            "--manual-stage-offload",
             "--transformer-runtime-mode",
             "auto_fused",
         ]
+        if task == "t2va":
+            generation_command.append("--manual-stage-offload")
+        else:
+            generation_command.extend(["--offload-reserve-margin", "64GB"])
         if reference is not None:
             generation_command.extend(["--reference", str(reference)])
 
@@ -306,7 +357,7 @@ class MiniMaxH3Runner:
         )
 
 
-class OrbitQuantMiniMaxH3ReleaseLoader:
+class OrbitQuantReleaseLoader:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -315,22 +366,22 @@ class OrbitQuantMiniMaxH3ReleaseLoader:
             }
         }
 
-    RETURN_TYPES = ("ORBITQUANT_H3_RELEASE", "STRING")
+    RETURN_TYPES = ("ORBITQUANT_RELEASE", "STRING")
     RETURN_NAMES = ("release", "summary_json")
     FUNCTION = "load"
-    CATEGORY = "OrbitQuant/MiniMax H3"
+    CATEGORY = "OrbitQuant"
 
     def load(self, model_path: str):
-        release = MiniMaxH3Release.from_path(model_path)
+        release = OrbitQuantRelease.from_path(model_path)
         return release, json.dumps(release.summary, indent=2, sort_keys=True)
 
 
-class OrbitQuantMiniMaxH3GenerateVideo:
+class OrbitQuantGenerateVideo:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "release": ("ORBITQUANT_H3_RELEASE", {"forceInput": True}),
+                "release": ("ORBITQUANT_RELEASE", {"forceInput": True}),
                 "prompt": (
                     "STRING",
                     {"default": "", "multiline": True, "dynamicPrompts": True},
@@ -352,12 +403,12 @@ class OrbitQuantMiniMaxH3GenerateVideo:
     RETURN_TYPES = ("VIDEO", "STRING")
     RETURN_NAMES = ("video", "report_json")
     FUNCTION = "generate"
-    CATEGORY = "OrbitQuant/MiniMax H3"
+    CATEGORY = "OrbitQuant"
     OUTPUT_NODE = True
 
     def run_for_comfy(
         self,
-        release: MiniMaxH3Release,
+        release: OrbitQuantRelease,
         prompt: str,
         task: str,
         reference_path: str,
@@ -368,8 +419,10 @@ class OrbitQuantMiniMaxH3GenerateVideo:
         steps: int,
         filename_prefix: str,
     ) -> tuple[Any, str, dict[str, str]]:
-        if not isinstance(release, MiniMaxH3Release):
-            raise ValueError("release must come from OrbitQuant MiniMax H3 Release Loader")
+        if not isinstance(release, OrbitQuantRelease):
+            raise ValueError("release must come from OrbitQuant Release Loader")
+        if release.adapter != "minimax_h3":
+            raise ValueError(f"adapter {release.adapter!r} does not support video generation")
 
         import folder_paths
         from comfy_api.latest import InputImpl
@@ -386,7 +439,7 @@ class OrbitQuantMiniMaxH3GenerateVideo:
         destination = Path(full_output_folder)
         destination.mkdir(parents=True, exist_ok=True)
         output_filename = f"{filename}_{counter:05}_.mp4"
-        result = MiniMaxH3Runner(release).run(
+        result = MiniMaxH3Runner(release.implementation).run(
             output_dir=destination,
             filename=output_filename,
             prompt=prompt,
@@ -409,7 +462,7 @@ class OrbitQuantMiniMaxH3GenerateVideo:
 
     def generate(
         self,
-        release: MiniMaxH3Release,
+        release: OrbitQuantRelease,
         prompt: str,
         task: str,
         reference_path: str,

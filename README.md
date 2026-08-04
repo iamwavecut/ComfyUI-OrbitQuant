@@ -16,8 +16,8 @@ component-loading API.
 | `OrbitQuant FLUX Loader` | Attach a FLUX or FLUX.2 transformer artifact and reject non-FLUX policies. |
 | `OrbitQuant Z-Image Loader` | Attach a Z-Image transformer artifact and reject other target policies. |
 | `OrbitQuant Wan Loader` | Attach a Wan transformer artifact and reject other target policies. |
-| `OrbitQuant MiniMax H3 Release Loader` | Validate the published multicomponent H3 W4A4 release and its component precision policy. |
-| `OrbitQuant MiniMax H3 Generate Video` | Run T2VA or Ref2VA with durable latents/checkpoints, manual stage offload, source FP32 VAEs, and a standard ComfyUI video preview. |
+| `OrbitQuant Release Loader` | Validate any supported multicomponent release and select its allowlisted adapter from `comfyui_orbitquant.json`. |
+| `OrbitQuant Generate Video` | Run a supported video release with durable intermediate artifacts and a standard ComfyUI video preview. |
 
 The same nodes are exposed through the legacy `NODE_CLASS_MAPPINGS` interface
 and the modern ComfyUI V3 `comfy_entrypoint` interface when `comfy_api` is
@@ -115,7 +115,7 @@ path when packed kernels are not installed in the ComfyUI Python environment.
 
 ## MiniMax H3 W4A4 video
 
-The H3 nodes consume the Diffusers-native multicomponent release instead of the
+The generic release nodes consume the Diffusers-native multicomponent release instead of the
 older single-component artifact layout described below. Download the private
 model into a local directory using the same environment as ComfyUI:
 
@@ -129,11 +129,14 @@ python -m pip install \
   "transformers>=5.13,<6" accelerate av soundfile
 ```
 
-Build this two-node graph:
+Build this two-node graph. The public node types are model-agnostic; H3-specific
+component and execution rules live in the release config and an internal
+allowlisted adapter, so another model family does not require another pair of
+ComfyUI nodes.
 
-1. Set `OrbitQuant MiniMax H3 Release Loader.model_path` to the downloaded
+1. Set `OrbitQuant Release Loader.model_path` to the downloaded
    directory.
-2. Connect its `release` output to `OrbitQuant MiniMax H3 Generate Video`.
+2. Connect its `release` output to `OrbitQuant Generate Video`.
 3. For T2VA keep `task=t2va`. For Ref2VA choose `ref2va` and set
    `reference_path` to a local image.
 4. Use `width=608`, `height=480`, and `steps=50` for the verified 480p recipe.
@@ -143,6 +146,10 @@ requires 5–15 seconds at 24 FPS; `num_frames=124` is the shortest verified VAE
 packing sequence and is therefore the default smoke. The text encoder enters
 GPU memory for conditioning and is then moved back to RAM before the selected
 transformer enters GPU memory.
+
+T2VA uses the lower-overhead manual stage policy. Ref2VA uses the upstream H3
+component manager so the untouched source FP32 VAE enters GPU memory only while
+the reference image is encoded, then returns to RAM before denoising.
 
 The node saves generation logs, per-step checkpoints, and the latent bundle as
 soon as each exists. Only after denoising succeeds does it decode with the

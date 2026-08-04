@@ -57,8 +57,10 @@ def test_node_mappings_expose_loader_and_inspector():
     assert nodes.NODE_DISPLAY_NAME_MAPPINGS["OrbitQuantFluxLoader"] == (
         "OrbitQuant FLUX Loader"
     )
-    assert "OrbitQuantMiniMaxH3ReleaseLoader" in nodes.NODE_CLASS_MAPPINGS
-    assert "OrbitQuantMiniMaxH3GenerateVideo" in nodes.NODE_CLASS_MAPPINGS
+    assert "OrbitQuantReleaseLoader" in nodes.NODE_CLASS_MAPPINGS
+    assert "OrbitQuantGenerateVideo" in nodes.NODE_CLASS_MAPPINGS
+    assert "OrbitQuantMiniMaxH3ReleaseLoader" not in nodes.NODE_CLASS_MAPPINGS
+    assert "OrbitQuantMiniMaxH3GenerateVideo" not in nodes.NODE_CLASS_MAPPINGS
 
 
 def test_readme_documents_kernel_extra_for_auto_fused_runtime():
@@ -72,8 +74,8 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
     assert 'python -m pip install -e "/path/to/OrbitQuant[kernels]"' in readme
     assert 'runtime_mode="dequant_bf16"' in readme
     assert "packed kernels are not installed" in readme
-    assert "OrbitQuant MiniMax H3 Release Loader" in readme
-    assert "OrbitQuant MiniMax H3 Generate Video" in readme
+    assert "OrbitQuant Release Loader" in readme
+    assert "OrbitQuant Generate Video" in readme
     assert "source FP32 VAEs" in readme
     assert "608" in readme
     assert "50 sigma points" in readme
@@ -196,8 +198,8 @@ def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
         "OrbitQuantFluxLoaderV3",
         "OrbitQuantZImageLoaderV3",
         "OrbitQuantWanLoaderV3",
-        "OrbitQuantMiniMaxH3ReleaseLoaderV3",
-        "OrbitQuantMiniMaxH3GenerateVideoV3",
+        "OrbitQuantReleaseLoaderV3",
+        "OrbitQuantGenerateVideoV3",
     ]
     assert schema.kwargs["node_id"] == "OrbitQuantPipelineComponentLoader"
     assert schema.kwargs["display_name"] == "OrbitQuant Pipeline Component Loader"
@@ -223,14 +225,14 @@ def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
     assert activation_input["options"][0] == "auto"
     assert activation_input["default"] == "auto"
 
-    h3_loader_schema = v3.OrbitQuantMiniMaxH3ReleaseLoaderV3.define_schema()
-    h3_generator_schema = v3.OrbitQuantMiniMaxH3GenerateVideoV3.define_schema()
-    assert h3_loader_schema.kwargs["node_id"] == "OrbitQuantMiniMaxH3ReleaseLoader"
+    h3_loader_schema = v3.OrbitQuantReleaseLoaderV3.define_schema()
+    h3_generator_schema = v3.OrbitQuantGenerateVideoV3.define_schema()
+    assert h3_loader_schema.kwargs["node_id"] == "OrbitQuantReleaseLoader"
     assert [output["type"] for output in h3_loader_schema.kwargs["outputs"]] == [
-        "ORBITQUANT_H3_RELEASE",
+        "ORBITQUANT_RELEASE",
         "STRING",
     ]
-    assert h3_generator_schema.kwargs["node_id"] == "OrbitQuantMiniMaxH3GenerateVideo"
+    assert h3_generator_schema.kwargs["node_id"] == "OrbitQuantGenerateVideo"
     assert h3_generator_schema.kwargs["is_output_node"] is True
     assert [output["type"] for output in h3_generator_schema.kwargs["outputs"]] == [
         "VIDEO",
@@ -257,12 +259,12 @@ def test_v3_h3_nodes_delegate_and_return_video_preview(monkeypatch, tmp_path):
     video = object()
 
     monkeypatch.setattr(
-        nodes.OrbitQuantMiniMaxH3ReleaseLoader,
+        nodes.OrbitQuantReleaseLoader,
         "load",
         lambda self, model_path: (release, f'{{"path":"{model_path}"}}'),
     )
     monkeypatch.setattr(
-        nodes.OrbitQuantMiniMaxH3GenerateVideo,
+        nodes.OrbitQuantGenerateVideo,
         "run_for_comfy",
         lambda self, *args: (
             video,
@@ -271,8 +273,8 @@ def test_v3_h3_nodes_delegate_and_return_video_preview(monkeypatch, tmp_path):
         ),
     )
 
-    loader_output = v3.OrbitQuantMiniMaxH3ReleaseLoaderV3.execute("/models/h3")
-    generator_output = v3.OrbitQuantMiniMaxH3GenerateVideoV3.execute(
+    loader_output = v3.OrbitQuantReleaseLoaderV3.execute("/models/h3")
+    generator_output = v3.OrbitQuantGenerateVideoV3.execute(
         release,
         "dynamic zoom",
         "t2va",

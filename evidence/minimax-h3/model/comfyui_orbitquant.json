@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "adapter": "minimax_h3",
+  "media_type": "video",
+  "tasks": [
+    "t2va",
+    "ref2va"
+  ],
+  "defaults": {
+    "width": 608,
+    "height": 480,
+    "num_frames": 124,
+    "steps": 50
+  }
+}

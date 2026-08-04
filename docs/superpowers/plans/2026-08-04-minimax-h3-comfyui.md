@@ -4,7 +4,7 @@
 
 **Goal:** Add durable MiniMax H3 W4A4 generation nodes and publish end-to-end ComfyUI proof from an RTX PRO 6000.
 
-**Architecture:** A manifest-validating loader produces a local release descriptor. A generation output node launches the release's pinned latent-generation and FP32-VAE decode scripts, then returns ComfyUI's standard video object and preview metadata.
+**Architecture:** A model-agnostic config/manifest loader selects an allowlisted internal adapter. A generic video output node launches the release's pinned latent-generation and FP32-VAE decode scripts, then returns ComfyUI's standard video object and preview metadata.
 
 **Tech Stack:** Python 3.11+, OrbitQuant 0.9.1, current ComfyUI V3 API, Diffusers MiniMax H3 modular pipeline, pytest, RunPod RTX PRO 6000.
 
@@ -29,7 +29,7 @@
 
 **Interfaces:**
 - Produces: `MiniMaxH3Release.from_path(path: str | Path) -> MiniMaxH3Release`
-- Produces: `OrbitQuantMiniMaxH3ReleaseLoader.load(model_path: str) -> tuple[MiniMaxH3Release, str]`
+- Produces: `OrbitQuantReleaseLoader.load(model_path: str) -> tuple[OrbitQuantRelease, str]`
 
 - [ ] Write failing tests for valid manifests and every preflight rejection.
 - [ ] Run `pytest tests/test_minimax_h3.py -q` and confirm failures identify missing interfaces.
@@ -47,7 +47,7 @@
 **Interfaces:**
 - Consumes: `MiniMaxH3Release`
 - Produces: `MiniMaxH3Runner.run(...) -> MiniMaxH3RunResult`
-- Produces: `OrbitQuantMiniMaxH3GenerateVideo.generate(...) -> dict[str, object]`
+- Produces: `OrbitQuantGenerateVideo.generate(...) -> dict[str, object]`
 
 - [ ] Write failing tests that assert exact generator and decoder commands, FP32 VAE flags, stage-offload flags, reference validation, durable paths, and failure reporting.
 - [ ] Run the focused tests and confirm they fail before implementation.
@@ -68,7 +68,7 @@
 
 **Interfaces:**
 - Consumes: legacy H3 node implementations.
-- Produces: V3 nodes with ids `OrbitQuantMiniMaxH3ReleaseLoader` and `OrbitQuantMiniMaxH3GenerateVideo`.
+- Produces: V3 nodes with ids `OrbitQuantReleaseLoader` and `OrbitQuantGenerateVideo`.
 
 - [ ] Add failing V3 schema/delegation tests and dependency/documentation assertions.
 - [ ] Run the focused tests and confirm the new expectations fail.
