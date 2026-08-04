@@ -4,6 +4,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+from comfyui_orbitquant.minimax_h3 import (
+    OrbitQuantMiniMaxH3GenerateVideo,
+    OrbitQuantMiniMaxH3ReleaseLoader,
+)
+
 RUNTIME_MODE_OPTIONS = (
     "auto_fused",
     "dequant_bf16",
@@ -321,6 +326,8 @@ NODE_CLASS_MAPPINGS = {
     "OrbitQuantFluxLoader": OrbitQuantFluxLoader,
     "OrbitQuantZImageLoader": OrbitQuantZImageLoader,
     "OrbitQuantWanLoader": OrbitQuantWanLoader,
+    "OrbitQuantMiniMaxH3ReleaseLoader": OrbitQuantMiniMaxH3ReleaseLoader,
+    "OrbitQuantMiniMaxH3GenerateVideo": OrbitQuantMiniMaxH3GenerateVideo,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -329,4 +336,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "OrbitQuantFluxLoader": "OrbitQuant FLUX Loader",
     "OrbitQuantZImageLoader": "OrbitQuant Z-Image Loader",
     "OrbitQuantWanLoader": "OrbitQuant Wan Loader",
+    "OrbitQuantMiniMaxH3ReleaseLoader": "OrbitQuant MiniMax H3 Release Loader",
+    "OrbitQuantMiniMaxH3GenerateVideo": "OrbitQuant MiniMax H3 Generate Video",
 }
