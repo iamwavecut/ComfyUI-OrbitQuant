@@ -5,7 +5,11 @@ The W4A4 multicomponent release works through current ComfyUI on an RTX PRO
 an allowlisted adapter from the release config, and `OrbitQuant Generate Video`
 returns ComfyUI's standard `VIDEO`. No MiniMax-specific node classes are exposed.
 
-![Public MiniMax H3 OrbitQuant workflow](workflow-screenshot.png)
+![Public MiniMax H3 OrbitQuant workflow](workflow-export.png)
+
+This 6120×2620 PNG was produced by ComfyUI's `Workflow Image → Export → png`
+action, not by taking a browser screenshot. Its `tEXtworkflow` chunk contains
+the same six-node workflow, two links, and verified 608×480 generation values.
 
 ## Public workflow
 

@@ -30,7 +30,7 @@
     "source": "Comfy-Org/workflow_templates/templates/video_minimax_h3_t2v.json",
     "ui_file": "workflows/minimax-h3-t2va-ui.json",
     "api_file_from_live_graph": "workflows/minimax-h3-public-ui-api.json",
-    "screenshot": "workflow-screenshot.png",
+    "workflow_image_export": "workflow-export.png",
     "live_import": {
       "node_count": 6,
       "missing_nodes": [],
@@ -90,7 +90,7 @@
     "hevc_t2va_sha256": "bc31c456f9fdfae29c4e89d063baa953bbd73141c05a237ed43006336661eaab",
     "h264_ref2va_sha256": "02233da18b3c01761889df2206181e0fc7b9f120165b37a0fe4c9f7bbdda0096",
     "hevc_ref2va_sha256": "0c3040f81aefdb14b30047a5c972347d012d72dbfa026b8a9b2e245e555b7996",
-    "workflow_sha256": "acdae68e874aa98236ba267908c6190db1ed3df184006a739b65e6427122bdef",
-    "workflow_screenshot_sha256": "a9baa81a17e2f6b69c7d4ea8c003e1b933c7877ac2c08073c44f8ef1e45bf45f"
+    "workflow_sha256": "7c1a82427b80203e4252726a0ab3a336a6859fe2ff43302a07de00bce5722acb",
+    "workflow_image_export_sha256": "df49d477b234e71c23e0a7d457d66315408333db62433885db4b20f3606328f0"
   }
 }
