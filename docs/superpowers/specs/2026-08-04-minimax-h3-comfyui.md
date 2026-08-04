@@ -21,8 +21,8 @@ release. T2VA runs the published denoising recipe with manual stage offload
 and atomically saved latents/checkpoints. It then runs the published decoder
 with explicit FP32 visual and audio VAEs. The output is wrapped as ComfyUI's
 standard `VIDEO` type and exposed through the standard video preview UI.
-Ref2VA uses H3's component manager so the source FP32 visual VAE enters GPU
-only for reference encoding and is offloaded before denoising.
+Ref2VA uses H3's component manager to place the source FP32 visual VAE for
+reference encoding while preserving the text-encoder conditioning offload.
 
 This boundary avoids copying model math into the node pack, makes partial
 artifacts durable, and keeps the text encoder on GPU only while conditioning.

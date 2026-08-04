@@ -121,7 +121,6 @@ model into a local directory using the same environment as ComfyUI:
 
 ```bash
 hf download WaveCut/MiniMax-H3-OrbitQuant-W4A4 \
-  --revision e434bbea523349576e7c3d2f6090744aa4597123 \
   --local-dir /models/MiniMax-H3-OrbitQuant-W4A4
 python -m pip install "orbitquant[hf,kernels]>=0.9.1,<0.10"
 python -m pip install \
@@ -148,8 +147,9 @@ GPU memory for conditioning and is then moved back to RAM before the selected
 transformer enters GPU memory.
 
 T2VA uses the lower-overhead manual stage policy. Ref2VA uses the upstream H3
-component manager so the untouched source FP32 VAE enters GPU memory only while
-the reference image is encoded, then returns to RAM before denoising.
+component manager to place the untouched source FP32 VAE for reference encoding.
+The text encoder returns to CPU after conditioning; the verified Ref2VA call
+peaked at 30.46 GiB of CUDA memory.
 
 The node saves generation logs, per-step checkpoints, and the latent bundle as
 soon as each exists. Only after denoising succeeds does it decode with the

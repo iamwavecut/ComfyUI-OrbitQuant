@@ -1,0 +1,96 @@
+{
+  "status": "pass",
+  "date": "2026-08-04",
+  "hardware": {
+    "provider": "RunPod",
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "gpu_memory_mib": 97887,
+    "template": "runpod-torch-v280",
+    "image": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"
+  },
+  "revisions": {
+    "comfyui": "9a9fdb10ed144ce760d9682cb247526ea23cc525",
+    "comfyui_frontend": "1.47.12",
+    "comfyui_orbitquant_candidate": "51d5473bc2bd4f14572724d362770c8ffacb10ed",
+    "model_release_tested": "e434bbea523349576e7c3d2f6090744aa4597123",
+    "source_model": "73372e6cf53e414edd3ab03e357717fb0602e758",
+    "orbitquant": "0.9.1",
+    "diffusers": "abc5e9bf71fd38f53cd471bc3acaa84bc5ecbfdc",
+    "official_workflow_templates": "7653f1cdef1d92394b6ef9946018c0a8aa4136b8"
+  },
+  "node_surface": {
+    "release_loader": "OrbitQuantReleaseLoader",
+    "video_generator": "OrbitQuantGenerateVideo",
+    "release_type": "ORBITQUANT_RELEASE",
+    "output_type": "VIDEO",
+    "model_specific_public_nodes": false,
+    "adapter": "minimax_h3"
+  },
+  "workflow": {
+    "source": "Comfy-Org/workflow_templates/templates/video_minimax_h3_t2v.json",
+    "ui_file": "workflows/minimax-h3-t2va-ui.json",
+    "api_file_from_live_graph": "workflows/minimax-h3-public-ui-api.json",
+    "screenshot": "workflow-screenshot.png",
+    "live_import": {
+      "node_count": 6,
+      "missing_nodes": [],
+      "links": 2,
+      "seed": 42,
+      "width": 608,
+      "height": 480,
+      "num_frames": 124,
+      "steps": 50
+    },
+    "terminal_prompt_id": "823b3407-ae85-43fd-b51a-129ea7a11f4d",
+    "save_video_output": {
+      "codec": "h264",
+      "width": 608,
+      "height": 480,
+      "frames": 124,
+      "fps": 24,
+      "audio": "aac stereo 32000 Hz",
+      "duration_seconds": 5.175
+    }
+  },
+  "runs": {
+    "t2va": {
+      "status": "pass",
+      "prompt_id": "32d20b0b-f8b9-4a8f-aa25-98db4ccc9644",
+      "component": "transformer",
+      "generation_seconds": 137.13920322200283,
+      "generation_peak_vram_gib": 18.90608207695186,
+      "decode_seconds": 5.4824893129989505,
+      "decode_peak_vram_gib": 11.286694642156363,
+      "native_w4_modules": "300/300",
+      "offload": "manual_stage_offload",
+      "text_encoder_after_generation": "cpu",
+      "vae_dtype": "fp32",
+      "audio_vae_dtype": "fp32",
+      "semantic_review": "pass: stable face, eyes, lips, wet-hair and jacket texture; no grid, ghosting, or temporal collapse"
+    },
+    "ref2va": {
+      "status": "pass",
+      "prompt_id": "4aa7325a-98e2-44ea-9f24-46ec404213b1",
+      "component": "transformer_ref",
+      "generation_seconds": 318.855212665163,
+      "generation_peak_vram_gib": 30.459273928776383,
+      "decode_seconds": 5.50284016598016,
+      "decode_peak_vram_gib": 11.286694642156363,
+      "native_w4_modules": "300/300",
+      "offload": "components_manager_auto_cpu_offload",
+      "offload_reserve_margin": "64GB",
+      "text_encoder_after_generation": "cpu",
+      "vae_dtype": "fp32",
+      "audio_vae_dtype": "fp32",
+      "semantic_review": "pass: face geometry, eyes, lips, visor reflection and suit texture remain coherent through the push-in"
+    }
+  },
+  "media": {
+    "h264_t2va_sha256": "4cceecedd28dfc593cf5e61145836405d18475bd8109b2ef7a984d96d91a13e6",
+    "hevc_t2va_sha256": "bc31c456f9fdfae29c4e89d063baa953bbd73141c05a237ed43006336661eaab",
+    "h264_ref2va_sha256": "02233da18b3c01761889df2206181e0fc7b9f120165b37a0fe4c9f7bbdda0096",
+    "hevc_ref2va_sha256": "0c3040f81aefdb14b30047a5c972347d012d72dbfa026b8a9b2e245e555b7996",
+    "workflow_sha256": "acdae68e874aa98236ba267908c6190db1ed3df184006a739b65e6427122bdef",
+    "workflow_screenshot_sha256": "a9baa81a17e2f6b69c7d4ea8c003e1b933c7877ac2c08073c44f8ef1e45bf45f"
+  }
+}
