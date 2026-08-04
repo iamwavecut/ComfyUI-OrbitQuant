@@ -1,28 +1,30 @@
 {
   "status": "public_audit_passed",
   "repo_id": "WaveCut/MiniMax-H3-OrbitQuant-W4A4",
-  "revision": "fa2d87b221910e0d9cb457151e5e14153362f1e9",
+  "revision": "478202c387a37b327843fd8556fd7983f6721ef1",
   "private": false,
-  "commit_count": 1,
-  "file_count": 113,
-  "total_bytes": 67542922354,
+  "commit_count": 2,
+  "file_count": 120,
+  "total_bytes": 67564381549,
   "anonymous_model_page_http_status": 200,
-  "anonymous_t2va_video_http_status": 206,
+  "anonymous_balanced_hevc_range_http_status": 206,
   "forbidden_cache_files": [],
   "old_browser_screenshot_present": false,
   "workflow_image_export": {
     "file": "comfyui/workflow-export.png",
-    "width": 6120,
-    "height": 2620,
+    "width": 3060,
+    "height": 1310,
     "embedded_workflow": true,
     "embedded_node_count": 6,
     "embedded_link_count": 2,
     "missing_nodes_after_png_import": [],
-    "sha256": "df49d477b234e71c23e0a7d457d66315408333db62433885db4b20f3606328f0"
+    "sha256": "164ac2cd2dd51a1aa7a99c213e6777585b48b9efdbe6ad742e39cad8a5143caf"
   },
   "verified_sha256": {
-    "README.md": "7b140b9f115e729213add98ce65e61c039e11ceb900228d84e109d21275ba046",
-    "comfyui/report.json": "f8bbd080f6676741ce5bd4d1c5dfda874d7077a3c3cc566a6e6c2e5fd0ea1a32",
-    "comfyui/workflows/MiniMax-H3-OrbitQuant-T2VA.json": "7c1a82427b80203e4252726a0ab3a336a6859fe2ff43302a07de00bce5722acb"
+    "README.md": "eaaff934eda5b84c4c5bb1c007e53817fe401231e42b958152810be4798dd1d4",
+    "comfyui/report.json": "c4eec7582b072e752e0491b7c79c3e76a1fc207a6cf3f1e86d95be13155b7782",
+    "comfyui/workflow-export.png": "164ac2cd2dd51a1aa7a99c213e6777585b48b9efdbe6ad742e39cad8a5143caf",
+    "comfyui/workflows/MiniMax-H3-OrbitQuant-T2VA.json": "e519ae3cd3763b9b832cee341eb4f982681a834ae0d3f80237b6d30a05350f92",
+    "comfyui/examples/hevc/comfyui-balanced-t2va-608x480-crf10.mp4": "1bbc05a09f3f49d1564afb1b0c0f49a5f3c3a05a34a28e4f8b28f1d3295f5335"
   }
 }
