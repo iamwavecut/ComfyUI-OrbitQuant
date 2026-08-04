@@ -8,8 +8,7 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from comfyui_orbitquant import minimax_h3
-from comfyui_orbitquant import nodes
+from comfyui_orbitquant import minimax_h3, nodes
 
 
 def _make_release(tmp_path: Path) -> Path:

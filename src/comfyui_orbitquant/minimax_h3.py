@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 W4A4_COMPONENTS = frozenset({"transformer", "transformer_ref", "text_encoder"})
 SOURCE_PRECISION_COMPONENTS = frozenset({"vae", "audio_vae"})
 REQUIRED_SCRIPTS = {

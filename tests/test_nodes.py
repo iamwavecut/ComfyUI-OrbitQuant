@@ -57,6 +57,8 @@ def test_node_mappings_expose_loader_and_inspector():
     assert nodes.NODE_DISPLAY_NAME_MAPPINGS["OrbitQuantFluxLoader"] == (
         "OrbitQuant FLUX Loader"
     )
+    assert "OrbitQuantMiniMaxH3ReleaseLoader" in nodes.NODE_CLASS_MAPPINGS
+    assert "OrbitQuantMiniMaxH3GenerateVideo" in nodes.NODE_CLASS_MAPPINGS
 
 
 def test_readme_documents_kernel_extra_for_auto_fused_runtime():
@@ -65,18 +67,23 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
     assert 'runtime_mode="auto_fused"' in readme
     assert "git clone https://github.com/iamwavecut/ComfyUI-OrbitQuant.git" in readme
     assert "git@github.com:iamwavecut/ComfyUI-OrbitQuant.git" not in readme
-    assert 'python -m pip install "orbitquant[kernels]>=0.6.0"' in readme
+    assert 'python -m pip install "orbitquant[hf,kernels]>=0.9.1,<0.10"' in readme
     assert 'python -m pip install "comfyui-orbitquant[kernels]"' in readme
     assert 'python -m pip install -e "/path/to/OrbitQuant[kernels]"' in readme
     assert 'runtime_mode="dequant_bf16"' in readme
     assert "packed kernels are not installed" in readme
+    assert "OrbitQuant MiniMax H3 Release Loader" in readme
+    assert "OrbitQuant MiniMax H3 Generate Video" in readme
+    assert "source FP32 VAEs" in readme
+    assert "608" in readme
+    assert "50 sigma points" in readme
 
 
 def test_pyproject_depends_on_public_orbitquant_release():
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
 
-    assert '"orbitquant>=0.6.0"' in pyproject
-    assert '"orbitquant[kernels]>=0.6.0"' in pyproject
+    assert '"orbitquant>=0.9.1,<0.10"' in pyproject
+    assert '"orbitquant[hf,kernels]>=0.9.1,<0.10"' in pyproject
     assert "git+ssh://git@github.com/iamwavecut/OrbitQuant.git" not in pyproject
 
 
@@ -140,21 +147,34 @@ def _install_fake_comfy_api(monkeypatch):
         def Input(self, name, **kwargs):
             return {"kind": "input", "type": self.type_name, "name": name, **kwargs}
 
-        def Output(self, **kwargs):
-            return {"kind": "output", "type": self.type_name, **kwargs}
+        def Output(self, output_id=None, **kwargs):
+            return {
+                "kind": "output",
+                "type": self.type_name,
+                "output_id": output_id,
+                **kwargs,
+            }
 
     fake_io = SimpleNamespace(
         ComfyNode=FakeComfyNode,
         Schema=FakeSchema,
         NodeOutput=FakeNodeOutput,
         String=FakeType("STRING"),
+        Int=FakeType("INT"),
         Boolean=FakeType("BOOLEAN"),
         Combo=FakeType("COMBO"),
+        Video=FakeType("VIDEO"),
         Custom=lambda type_name: FakeType(type_name),
     )
+    class FakePreviewVideo:
+        def __init__(self, values):
+            self.values = values
+
+    fake_ui = SimpleNamespace(PreviewVideo=FakePreviewVideo)
     fake_latest = ModuleType("comfy_api.latest")
     fake_latest.ComfyExtension = FakeComfyExtension
     fake_latest.io = fake_io
+    fake_latest.ui = fake_ui
     fake_api = ModuleType("comfy_api")
     fake_api.latest = fake_latest
     monkeypatch.setitem(sys.modules, "comfy_api", fake_api)
@@ -176,6 +196,8 @@ def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
         "OrbitQuantFluxLoaderV3",
         "OrbitQuantZImageLoaderV3",
         "OrbitQuantWanLoaderV3",
+        "OrbitQuantMiniMaxH3ReleaseLoaderV3",
+        "OrbitQuantMiniMaxH3GenerateVideoV3",
     ]
     assert schema.kwargs["node_id"] == "OrbitQuantPipelineComponentLoader"
     assert schema.kwargs["display_name"] == "OrbitQuant Pipeline Component Loader"
@@ -200,6 +222,74 @@ def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
     assert runtime_input["default"] == "auto_fused"
     assert activation_input["options"][0] == "auto"
     assert activation_input["default"] == "auto"
+
+    h3_loader_schema = v3.OrbitQuantMiniMaxH3ReleaseLoaderV3.define_schema()
+    h3_generator_schema = v3.OrbitQuantMiniMaxH3GenerateVideoV3.define_schema()
+    assert h3_loader_schema.kwargs["node_id"] == "OrbitQuantMiniMaxH3ReleaseLoader"
+    assert [output["type"] for output in h3_loader_schema.kwargs["outputs"]] == [
+        "ORBITQUANT_H3_RELEASE",
+        "STRING",
+    ]
+    assert h3_generator_schema.kwargs["node_id"] == "OrbitQuantMiniMaxH3GenerateVideo"
+    assert h3_generator_schema.kwargs["is_output_node"] is True
+    assert [output["type"] for output in h3_generator_schema.kwargs["outputs"]] == [
+        "VIDEO",
+        "STRING",
+    ]
+    assert [spec["name"] for spec in h3_generator_schema.kwargs["inputs"]] == [
+        "release",
+        "prompt",
+        "task",
+        "reference_path",
+        "seed",
+        "width",
+        "height",
+        "num_frames",
+        "steps",
+        "filename_prefix",
+    ]
+
+
+def test_v3_h3_nodes_delegate_and_return_video_preview(monkeypatch, tmp_path):
+    _install_fake_comfy_api(monkeypatch)
+    v3 = importlib.import_module("comfyui_orbitquant.v3")
+    release = object()
+    video = object()
+
+    monkeypatch.setattr(
+        nodes.OrbitQuantMiniMaxH3ReleaseLoader,
+        "load",
+        lambda self, model_path: (release, f'{{"path":"{model_path}"}}'),
+    )
+    monkeypatch.setattr(
+        nodes.OrbitQuantMiniMaxH3GenerateVideo,
+        "run_for_comfy",
+        lambda self, *args: (
+            video,
+            '{"status":"pass"}',
+            {"filename": "proof.mp4", "subfolder": "orbitquant", "type": "output"},
+        ),
+    )
+
+    loader_output = v3.OrbitQuantMiniMaxH3ReleaseLoaderV3.execute("/models/h3")
+    generator_output = v3.OrbitQuantMiniMaxH3GenerateVideoV3.execute(
+        release,
+        "dynamic zoom",
+        "t2va",
+        "",
+        42,
+        608,
+        480,
+        44,
+        50,
+        "orbitquant/minimax-h3",
+    )
+
+    assert loader_output.values == (release, '{"path":"/models/h3"}')
+    assert generator_output.values == (video, '{"status":"pass"}')
+    assert generator_output.ui.values == [
+        {"filename": "proof.mp4", "subfolder": "orbitquant", "type": "output"}
+    ]
 
 
 def test_v3_nodes_delegate_to_legacy_implementations(monkeypatch):

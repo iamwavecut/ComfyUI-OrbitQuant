@@ -16,6 +16,8 @@ component-loading API.
 | `OrbitQuant FLUX Loader` | Attach a FLUX or FLUX.2 transformer artifact and reject non-FLUX policies. |
 | `OrbitQuant Z-Image Loader` | Attach a Z-Image transformer artifact and reject other target policies. |
 | `OrbitQuant Wan Loader` | Attach a Wan transformer artifact and reject other target policies. |
+| `OrbitQuant MiniMax H3 Release Loader` | Validate the published multicomponent H3 W4A4 release and its component precision policy. |
+| `OrbitQuant MiniMax H3 Generate Video` | Run T2VA or Ref2VA with durable latents/checkpoints, manual stage offload, source FP32 VAEs, and a standard ComfyUI video preview. |
 
 The same nodes are exposed through the legacy `NODE_CLASS_MAPPINGS` interface
 and the modern ComfyUI V3 `comfy_entrypoint` interface when `comfy_api` is
@@ -42,7 +44,7 @@ For a manual clone, install the `orbitquant` package into the Python
 environment used by ComfyUI and provision the native kernels explicitly:
 
 ```bash
-python -m pip install "orbitquant>=0.6.0"
+python -m pip install "orbitquant>=0.9.1,<0.10"
 python -m orbitquant.cli.main kernels-install
 ```
 
@@ -51,7 +53,7 @@ OrbitQuant with its kernel runtime extra. This provides the Triton fallback
 used when no native variant matches:
 
 ```bash
-python -m pip install "orbitquant[kernels]>=0.6.0"
+python -m pip install "orbitquant[hf,kernels]>=0.9.1,<0.10"
 ```
 
 If you install this node pack from PyPI, the same kernel runtime dependencies
@@ -110,6 +112,41 @@ weight matrix. `activation_kernel_backend` defaults to `auto`; the
 
 Use `runtime_mode="dequant_bf16"` only as an explicit compatibility or debug
 path when packed kernels are not installed in the ComfyUI Python environment.
+
+## MiniMax H3 W4A4 video
+
+The H3 nodes consume the Diffusers-native multicomponent release instead of the
+older single-component artifact layout described below. Download the private
+model into a local directory using the same environment as ComfyUI:
+
+```bash
+hf download WaveCut/MiniMax-H3-OrbitQuant-W4A4 \
+  --revision e434bbea523349576e7c3d2f6090744aa4597123 \
+  --local-dir /models/MiniMax-H3-OrbitQuant-W4A4
+python -m pip install "orbitquant[hf,kernels]>=0.9.1,<0.10"
+python -m pip install \
+  "diffusers @ git+https://github.com/huggingface/diffusers.git@abc5e9bf71fd38f53cd471bc3acaa84bc5ecbfdc" \
+  "transformers>=5.13,<6" accelerate av soundfile
+```
+
+Build this two-node graph:
+
+1. Set `OrbitQuant MiniMax H3 Release Loader.model_path` to the downloaded
+   directory.
+2. Connect its `release` output to `OrbitQuant MiniMax H3 Generate Video`.
+3. For T2VA keep `task=t2va`. For Ref2VA choose `ref2va` and set
+   `reference_path` to a local image.
+4. Use `width=608`, `height=480`, and `steps=50` for the verified 480p recipe.
+
+The official schedule has 50 sigma points and 49 denoiser forwards. The default
+44-frame smoke is economical; raise `num_frames` to 124 for the full model-card
+duration. The text encoder enters GPU memory for conditioning and is then moved
+back to RAM before the selected transformer enters GPU memory.
+
+The node saves generation logs, per-step checkpoints, and the latent bundle as
+soon as each exists. Only after denoising succeeds does it decode with the
+untouched source FP32 VAEs. The output is a standard ComfyUI `VIDEO`, so the
+core preview and downstream video nodes work without VideoHelperSuite.
 
 ## Artifact Requirements
 

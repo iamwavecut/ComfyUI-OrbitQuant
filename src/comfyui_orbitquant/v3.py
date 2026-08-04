@@ -5,7 +5,7 @@ from typing import Any
 from comfyui_orbitquant import nodes
 
 try:
-    from comfy_api.latest import ComfyExtension, io
+    from comfy_api.latest import ComfyExtension, io, ui
 except Exception as exc:  # pragma: no cover - exercised through lazy import tests.
     raise ImportError("ComfyUI V3 API is not available") from exc
 
@@ -13,6 +13,7 @@ except Exception as exc:  # pragma: no cover - exercised through lazy import tes
 _CATEGORY = "OrbitQuant"
 _INFO_TYPE = "ORBITQUANT_INFO"
 _PIPELINE_TYPE = "PIPELINE"
+_H3_RELEASE_TYPE = "ORBITQUANT_H3_RELEASE"
 
 
 def _pipeline_input() -> Any:
@@ -20,11 +21,11 @@ def _pipeline_input() -> Any:
 
 
 def _pipeline_output() -> Any:
-    return io.Custom(_PIPELINE_TYPE).Output(display_name="pipeline")
+    return io.Custom(_PIPELINE_TYPE).Output("pipeline", display_name="pipeline")
 
 
 def _info_output() -> Any:
-    return io.Custom(_INFO_TYPE).Output(display_name="info")
+    return io.Custom(_INFO_TYPE).Output("info", display_name="info")
 
 
 def _artifact_path_input() -> Any:
@@ -72,7 +73,7 @@ class OrbitQuantArtifactInspectorV3(io.ComfyNode):
             description="Validate an OrbitQuant artifact and summarize its metadata.",
             inputs=[_artifact_path_input()],
             outputs=[
-                io.String.Output(display_name="summary"),
+                io.String.Output("summary", display_name="summary"),
                 _info_output(),
             ],
         )
@@ -197,6 +198,106 @@ class OrbitQuantWanLoaderV3(_OrbitQuantTransformerLoaderV3):
     description = "Attach a Wan OrbitQuant transformer artifact to a pipeline."
 
 
+class OrbitQuantMiniMaxH3ReleaseLoaderV3(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="OrbitQuantMiniMaxH3ReleaseLoader",
+            display_name="OrbitQuant MiniMax H3 Release Loader",
+            category=f"{_CATEGORY}/MiniMax H3",
+            description=(
+                "Validate a local MiniMax H3 OrbitQuant W4A4 multicomponent release."
+            ),
+            inputs=[
+                io.String.Input(
+                    "model_path",
+                    default="",
+                    multiline=False,
+                    tooltip="Local directory downloaded from the H3 OrbitQuant model repo.",
+                )
+            ],
+            outputs=[
+                io.Custom(_H3_RELEASE_TYPE).Output("release", display_name="release"),
+                io.String.Output("summary_json", display_name="summary_json"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, model_path: str) -> io.NodeOutput:
+        release, summary_json = nodes.OrbitQuantMiniMaxH3ReleaseLoader().load(model_path)
+        return io.NodeOutput(release, summary_json)
+
+
+class OrbitQuantMiniMaxH3GenerateVideoV3(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="OrbitQuantMiniMaxH3GenerateVideo",
+            display_name="OrbitQuant MiniMax H3 Generate Video",
+            category=f"{_CATEGORY}/MiniMax H3",
+            description=(
+                "Generate MiniMax H3 audio-video with durable latents, stage offload, "
+                "and source FP32 VAE decode."
+            ),
+            is_output_node=True,
+            inputs=[
+                io.Custom(_H3_RELEASE_TYPE).Input("release"),
+                io.String.Input(
+                    "prompt",
+                    default="",
+                    multiline=True,
+                    dynamic_prompts=True,
+                ),
+                io.Combo.Input("task", options=["t2va", "ref2va"], default="t2va"),
+                io.String.Input("reference_path", default="", multiline=False),
+                io.Int.Input("seed", default=42, min=0, max=2**63 - 1),
+                io.Int.Input("width", default=608, min=64, max=4096, step=32),
+                io.Int.Input("height", default=480, min=64, max=4096, step=32),
+                io.Int.Input("num_frames", default=44, min=4, max=4096, step=4),
+                io.Int.Input("steps", default=50, min=2, max=1000),
+                io.String.Input(
+                    "filename_prefix",
+                    default="orbitquant/minimax-h3",
+                    multiline=False,
+                ),
+            ],
+            outputs=[
+                io.Video.Output("video", display_name="video"),
+                io.String.Output("report_json", display_name="report_json"),
+            ],
+        )
+
+    @classmethod
+    def execute(
+        cls,
+        release: Any,
+        prompt: str,
+        task: str,
+        reference_path: str,
+        seed: int,
+        width: int,
+        height: int,
+        num_frames: int,
+        steps: int,
+        filename_prefix: str,
+    ) -> io.NodeOutput:
+        video, report_json, preview = (
+            nodes.OrbitQuantMiniMaxH3GenerateVideo().run_for_comfy(
+                release,
+                prompt,
+                task,
+                reference_path,
+                seed,
+                width,
+                height,
+                num_frames,
+                steps,
+                filename_prefix,
+            )
+        )
+        return io.NodeOutput(video, report_json, ui=ui.PreviewVideo([preview]))
+
+
 class OrbitQuantExtension(ComfyExtension):
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
         return [
@@ -205,6 +306,8 @@ class OrbitQuantExtension(ComfyExtension):
             OrbitQuantFluxLoaderV3,
             OrbitQuantZImageLoaderV3,
             OrbitQuantWanLoaderV3,
+            OrbitQuantMiniMaxH3ReleaseLoaderV3,
+            OrbitQuantMiniMaxH3GenerateVideoV3,
         ]
 
 
