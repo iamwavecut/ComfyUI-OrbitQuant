@@ -1,39 +1,84 @@
 {
-  "last_node_id": 2,
-  "last_link_id": 1,
+  "id": "d751242b-9f76-4c66-9183-449980185e86",
+  "revision": 0,
+  "last_node_id": 119,
+  "last_link_id": 2,
   "nodes": [
     {
-      "id": 1,
-      "type": "OrbitQuantMiniMaxH3ReleaseLoader",
-      "pos": [80, 180],
-      "size": [390, 140],
+      "id": 117,
+      "type": "MarkdownNote",
+      "pos": [-2550, 4840],
+      "size": [440, 740],
       "flags": {},
       "order": 0,
       "mode": 0,
       "inputs": [],
-      "outputs": [
-        {"name": "release", "type": "ORBITQUANT_H3_RELEASE", "links": [1], "slot_index": 0},
-        {"name": "summary_json", "type": "STRING", "links": null, "slot_index": 1}
-      ],
-      "properties": {"Node name for S&R": "OrbitQuantMiniMaxH3ReleaseLoader"},
-      "widgets_values": ["/workspace/models/MiniMax-H3-OrbitQuant-W4A4"]
+      "outputs": [],
+      "title": "Note: Model Links",
+      "properties": {},
+      "widgets_values": ["## Model Links\n\n- [🤗 WaveCut/MiniMax-H3-OrbitQuant-W4A4](https://huggingface.co/WaveCut/MiniMax-H3-OrbitQuant-W4A4)\n- [ComfyUI-OrbitQuant nodes](https://github.com/iamwavecut/ComfyUI-OrbitQuant/tree/feature/minimax-h3-comfyui)\n- [Original MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3)\n\n## Model Storage Location\n\nDownload the complete release as one directory:\n\n```\n📂 models/\n└── 📂 MiniMax-H3-OrbitQuant-W4A4/\n    ├── transformer/          # W4A4\n    ├── transformer_ref/      # W4A4\n    ├── text_encoder/         # W4A4\n    ├── vae/                  # source FP32\n    ├── audio_vae/            # source FP32\n    ├── scripts/\n    ├── quantization_manifest.json\n    └── comfyui_orbitquant.json\n```\n\nSet that directory in **OrbitQuant Release Loader**. The node selects an allowlisted internal adapter from the release config; there are no model-specific H3 node classes.\n\n## Runtime\n\nUse ComfyUI current plus `orbitquant[hf,kernels]>=0.9.1,<0.10` and the pinned H3 Diffusers revision documented in the model card."],
+      "color": "#222",
+      "bgcolor": "#000"
     },
     {
-      "id": 2,
-      "type": "OrbitQuantMiniMaxH3GenerateVideo",
-      "pos": [560, 80],
-      "size": [520, 500],
+      "id": 116,
+      "type": "MarkdownNote",
+      "pos": [-2080, 4840],
+      "size": [450, 740],
       "flags": {},
       "order": 1,
       "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: MiniMax H3 OrbitQuant",
+      "properties": {},
+      "widgets_values": ["## MiniMax H3 — OrbitQuant W4A4\n\nThis public workflow follows ComfyUI's bundled **MiniMax H3 Text to Video** preset: model links and usage notes on the left, one compact generation node in the center, and the standard **Save Video** output on the right.\n\nUpstream preset: [`video_minimax_h3_t2v.json`](https://github.com/Comfy-Org/workflow_templates/blob/7653f1cdef1d92394b6ef9946018c0a8aa4136b8/templates/video_minimax_h3_t2v.json).\n\n## About this workflow\n\n**Key inputs**\n\n- **prompt**: describe the shot, camera motion, dialogue, sound effects, and music in one block\n- **task**: `t2va` for text-to-video; `ref2va` uses the same node and a local reference path\n- **width / height**: this published proof is fixed to **608 × 480**\n- **num_frames**: **124** frames, the shortest verified 5-second H3 packing sequence\n- **steps**: **50 sigma points / 49 denoiser forwards**, matching the quality recipe\n\nThe text encoder enters GPU only for conditioning. T2VA uses manual stage offload; Ref2VA uses H3's component manager so the source FP32 VAE enters GPU only while encoding the reference. Visual and audio decode always use the untouched source FP32 VAEs."],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 119,
+      "type": "OrbitQuantReleaseLoader",
+      "pos": [-1580, 4840],
+      "size": [450, 150],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "release", "type": "ORBITQUANT_RELEASE", "links": [1], "slot_index": 0},
+        {"name": "summary_json", "type": "STRING", "links": null, "slot_index": 1}
+      ],
+      "title": "OrbitQuant Release Loader (Model)",
+      "properties": {"Node name for S&R": "OrbitQuantReleaseLoader"},
+      "widgets_values": ["/workspace/models/MiniMax-H3-OrbitQuant-W4A4"]
+    },
+    {
+      "id": 105,
+      "type": "OrbitQuantGenerateVideo",
+      "pos": [-1080, 4840],
+      "size": [500, 630],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
       "inputs": [
-        {"name": "release", "type": "ORBITQUANT_H3_RELEASE", "link": 1}
+        {"name": "release", "type": "ORBITQUANT_RELEASE", "link": 1},
+        {"name": "prompt", "type": "STRING", "widget": {"name": "prompt"}, "link": null},
+        {"name": "task", "type": "COMBO", "widget": {"name": "task"}, "link": null},
+        {"name": "reference_path", "type": "STRING", "widget": {"name": "reference_path"}, "link": null},
+        {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": null},
+        {"name": "width", "type": "INT", "widget": {"name": "width"}, "link": null},
+        {"name": "height", "type": "INT", "widget": {"name": "height"}, "link": null},
+        {"name": "num_frames", "type": "INT", "widget": {"name": "num_frames"}, "link": null},
+        {"name": "steps", "type": "INT", "widget": {"name": "steps"}, "link": null},
+        {"name": "filename_prefix", "type": "STRING", "widget": {"name": "filename_prefix"}, "link": null}
       ],
       "outputs": [
-        {"name": "video", "type": "VIDEO", "links": null, "slot_index": 0},
+        {"name": "video", "type": "VIDEO", "links": [2], "slot_index": 0},
         {"name": "report_json", "type": "STRING", "links": null, "slot_index": 1}
       ],
-      "properties": {"Node name for S&R": "OrbitQuantMiniMaxH3GenerateVideo"},
+      "title": "Generate Video (Verified 608 × 480)",
+      "properties": {"Node name for S&R": "OrbitQuantGenerateVideo", "previewExposures": []},
       "widgets_values": [
         "Single continuous live-action shot of a young woman running toward the camera in rain. The camera rapidly dollies backward, then smoothly pushes into a tight close-up while she turns her head and says in Russian: «Я здесь». Stable face identity, natural eyes and lips, coherent wet hair and jacket texture, strong motion, no cuts.",
         "t2va",
@@ -45,13 +90,50 @@
         50,
         "orbitquant/minimax-h3-t2va"
       ]
+    },
+    {
+      "id": 92,
+      "type": "SaveVideo",
+      "pos": [-540, 4840],
+      "size": [850, 126],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"name": "video", "type": "VIDEO", "link": 2}
+      ],
+      "outputs": [
+        {"name": "video", "type": "VIDEO", "links": null}
+      ],
+      "properties": {},
+      "widgets_values": ["video/MiniMax_H3_OrbitQuant", "auto", "auto"]
+    },
+    {
+      "id": 118,
+      "type": "MarkdownNote",
+      "pos": [-1580, 5040],
+      "size": [450, 520],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: Verified Profile",
+      "properties": {},
+      "widgets_values": ["## Verified 480p profile\n\n| setting | value |\n|---|---:|\n| width | 608 |\n| height | 480 |\n| frames | 124 |\n| fps | 24 |\n| sigma points | 50 |\n| denoiser forwards | 49 |\n| visual VAE | source FP32 |\n| audio VAE | source FP32 |\n\nH3 accepts 5–15 seconds. The runner rejects shorter frame counts before allocating the denoiser, preventing expensive invalid jobs. Every scheduler checkpoint, latent bundle, metrics file, and stage log is persisted as soon as it exists."],
+      "color": "#222",
+      "bgcolor": "#000"
     }
   ],
   "links": [
-    [1, 1, 0, 2, 0, "ORBITQUANT_H3_RELEASE"]
+    [1, 119, 0, 105, 0, "ORBITQUANT_RELEASE"],
+    [2, 105, 0, 92, 0, "VIDEO"]
   ],
   "groups": [],
   "config": {},
-  "extra": {},
+  "extra": {
+    "frontendVersion": "1.47.12",
+    "ds": {"scale": 0.58, "offset": [1550, -2550]}
+  },
   "version": 0.4
 }

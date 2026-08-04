@@ -388,7 +388,15 @@ class OrbitQuantGenerateVideo:
                 ),
                 "task": (["t2va", "ref2va"], {"default": "t2va"}),
                 "reference_path": ("STRING", {"default": "", "multiline": False}),
-                "seed": ("INT", {"default": 42, "min": 0, "max": 2**63 - 1}),
+                "seed": (
+                    "INT",
+                    {
+                        "default": 42,
+                        "min": 0,
+                        "max": 2**63 - 1,
+                        "control_after_generate": False,
+                    },
+                ),
                 "width": ("INT", {"default": 608, "min": 64, "max": 4096, "step": 32}),
                 "height": ("INT", {"default": 480, "min": 64, "max": 4096, "step": 32}),
                 "num_frames": ("INT", {"default": 124, "min": 120, "max": 360, "step": 4}),

@@ -292,6 +292,12 @@ def test_legacy_node_mappings_expose_only_generic_release_nodes():
     assert "OrbitQuantMiniMaxH3GenerateVideo" not in nodes.NODE_CLASS_MAPPINGS
 
 
+def test_generator_seed_is_fixed_without_implicit_control_widget():
+    seed_options = minimax_h3.OrbitQuantGenerateVideo.INPUT_TYPES()["required"]["seed"][1]
+
+    assert seed_options["control_after_generate"] is False
+
+
 def test_generator_node_returns_standard_video_and_preview(tmp_path, monkeypatch):
     release = minimax_h3.MiniMaxH3Release.from_path(_make_release(tmp_path))
     output_root = tmp_path / "comfy-output"
