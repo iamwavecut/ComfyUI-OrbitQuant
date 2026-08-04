@@ -15,14 +15,15 @@
         "1",
         0
       ],
-      "prompt": "Single continuous live-action shot of a young woman running toward the camera in rain. The camera rapidly dollies backward, then smoothly pushes into a tight close-up while she turns her head and says in Russian: «Я здесь». Stable face identity, natural eyes and lips, coherent wet hair and jacket texture, strong motion, no cuts.",
+      "prompt": "Create one uninterrupted five-second photorealistic cinematic shot inside a vast abandoned Victorian astronomical conservatory during a midnight thunderstorm. Begin centimetres above a flooded mosaic floor on an extreme macro view of a scratched silver compass as a raindrop creates concentric ripples through reflected amber lamps. In the background, the same young female astronomer with dark hazel eyes, a small scar through her right eyebrow, rain-darkened curls and a burgundy wool coat runs toward an antique brass orrery. The camera performs one fast but smooth backward-and-upward crane with a clockwise half-orbit, passes cleanly between rotating copper rings, racks focus from the compass to her face, then transitions into a controlled push-in. Preserve strong physical parallax, straight architecture, attached compass parts, stable orrery topology, readable glass planets, plausible splashes, coherent wet fabric, fixed facial identity, aligned eyes, natural lips, five stable fingers and consistent hairline throughout every frame. A blue-white lightning flash crosses the dome and illuminates the woman, water, brass and glass coherently, followed by physically delayed thunder. In the final close-up she catches her breath, looks into the lens, grips a small brass lever and says clearly in Russian: «Не бойся грома — смотри, как небо запоминает нас». Synchronize her lips and preserve a single natural voice. Build continuous stereo sound from rain, footsteps, brass gears, wind through cracked glass, lightning and thunder; no electronic squeal, duplicated speech or clipping. Use believable anamorphic photography, restrained halation, realistic skin, natural motion blur, coherent reflections and subtle sensor grain. No cuts, temporal resets, face morphing, crossed eyes, melting mouth, texture crawling, checkerboard grids, duplicated limbs, subtitles, logos, watermarks or black frames.",
       "task": "t2va",
+      "inference_profile": "balanced",
       "reference_path": "",
       "seed": 42,
       "width": 608,
       "height": 480,
       "num_frames": 124,
-      "steps": 50,
+      "steps": 24,
       "filename_prefix": "orbitquant/minimax-h3-t2va"
     },
     "_meta": {

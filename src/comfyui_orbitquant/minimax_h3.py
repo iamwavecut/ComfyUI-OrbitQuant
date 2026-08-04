@@ -16,6 +16,7 @@ REQUIRED_SCRIPTS = {
 }
 RELEASE_CONFIG = Path("comfyui_orbitquant.json")
 SUPPORTED_ADAPTERS = frozenset({"minimax_h3"})
+INFERENCE_PROFILES = ("balanced", "speed", "minimum_vram")
 
 
 def _read_json(path: Path, label: str) -> dict[str, Any]:
@@ -162,6 +163,7 @@ class OrbitQuantRelease:
 @dataclass(frozen=True)
 class MiniMaxH3RunResult:
     output_path: Path
+    master_path: Path
     latents_path: Path
     checkpoint_dir: Path
     generation_log_path: Path
@@ -209,6 +211,7 @@ class MiniMaxH3Runner:
         filename: str,
         prompt: str,
         task: str,
+        inference_profile: str = "balanced",
         reference_path: str,
         seed: int,
         width: int,
@@ -220,6 +223,11 @@ class MiniMaxH3Runner:
             raise ValueError("MiniMax H3 prompt must not be empty")
         if task not in {"t2va", "ref2va"}:
             raise ValueError(f"MiniMax H3 task must be t2va or ref2va, got {task!r}")
+        if inference_profile not in INFERENCE_PROFILES:
+            raise ValueError(
+                "MiniMax H3 inference_profile must be one of "
+                f"{list(INFERENCE_PROFILES)}, got {inference_profile!r}"
+            )
         if width <= 0 or height <= 0:
             raise ValueError("MiniMax H3 width and height must be positive")
         if not 120 <= num_frames <= 360:
@@ -244,12 +252,13 @@ class MiniMaxH3Runner:
         destination.mkdir(parents=True, exist_ok=True)
         output_path = destination / filename
         stem = output_path.with_suffix("")
+        master_path = destination / f"{stem.name}.master-crf1.mp4"
         latents_path = stem.with_suffix(".latents.pt")
         checkpoint_dir = destination / f"{stem.name}.checkpoints"
         generation_log_path = stem.with_suffix(".generate.log")
         decode_log_path = stem.with_suffix(".decode.log")
         generation_metrics_path = output_path.with_suffix(".metrics.json")
-        decode_metrics_path = output_path.with_suffix(".decode.metrics.json")
+        decode_metrics_path = master_path.with_suffix(".decode.metrics.json")
         report_path = output_path.with_suffix(".comfyui.json")
 
         generation_command = [
@@ -279,11 +288,33 @@ class MiniMaxH3Runner:
             str(steps),
             "--transformer-runtime-mode",
             "auto_fused",
+            "--manual-stage-offload",
+            "--text-encoder-sequential-offload",
         ]
-        if task == "t2va":
-            generation_command.append("--manual-stage-offload")
-        else:
-            generation_command.extend(["--offload-reserve-margin", "64GB"])
+        if inference_profile in {"balanced", "minimum_vram"}:
+            generation_command.extend(
+                [
+                    "--transformer-group-offload-type",
+                    "leaf_level",
+                    "--group-offload-use-stream",
+                ]
+            )
+            generation_command.extend(
+                [
+                    "--cuda-memory-cap-gib",
+                    "12" if inference_profile == "balanced" else "8",
+                ]
+            )
+        if inference_profile == "minimum_vram":
+            generation_command.append("--group-offload-low-cpu-mem-usage")
+        if task == "ref2va":
+            generation_command.extend(
+                [
+                    "--reference-vae-sequential-offload",
+                    "--reference-vae-tile-size",
+                    "128",
+                ]
+            )
         if reference is not None:
             generation_command.extend(["--reference", str(reference)])
 
@@ -304,13 +335,11 @@ class MiniMaxH3Runner:
             str(latents_path),
             "--vae",
             str(self.release.path / "vae"),
-            "--vae-dtype",
-            "fp32",
             "--audio-vae",
             str(self.release.path / "audio_vae"),
-            "--audio-vae-dtype",
-            "fp32",
             "--output",
+            str(master_path),
+            "--preview-output",
             str(output_path),
         ]
         self._run_stage(
@@ -321,12 +350,15 @@ class MiniMaxH3Runner:
         )
         if not output_path.is_file():
             raise RuntimeError(f"MiniMax H3 decoder did not produce video: {output_path}")
+        if not master_path.is_file():
+            raise RuntimeError(f"MiniMax H3 decoder did not produce CRF1 master: {master_path}")
         decode_metrics = _read_json(decode_metrics_path, "decode metrics")
 
         report = {
             "status": "pass",
             "release": self.release.summary,
             "task": task,
+            "inference_profile": inference_profile,
             "prompt": prompt,
             "reference_path": str(reference) if reference is not None else None,
             "seed": seed,
@@ -335,6 +367,7 @@ class MiniMaxH3Runner:
             "num_frames": num_frames,
             "steps": steps,
             "output_path": str(output_path),
+            "master_path": str(master_path),
             "latents_path": str(latents_path),
             "checkpoint_dir": str(checkpoint_dir),
             "generation_log_path": str(generation_log_path),
@@ -345,6 +378,7 @@ class MiniMaxH3Runner:
         _atomic_json_write(report_path, report)
         return MiniMaxH3RunResult(
             output_path=output_path,
+            master_path=master_path,
             latents_path=latents_path,
             checkpoint_dir=checkpoint_dir,
             generation_log_path=generation_log_path,
@@ -387,6 +421,7 @@ class OrbitQuantGenerateVideo:
                     {"default": "", "multiline": True, "dynamicPrompts": True},
                 ),
                 "task": (["t2va", "ref2va"], {"default": "t2va"}),
+                "inference_profile": (list(INFERENCE_PROFILES), {"default": "balanced"}),
                 "reference_path": ("STRING", {"default": "", "multiline": False}),
                 "seed": (
                     "INT",
@@ -400,7 +435,7 @@ class OrbitQuantGenerateVideo:
                 "width": ("INT", {"default": 608, "min": 64, "max": 4096, "step": 32}),
                 "height": ("INT", {"default": 480, "min": 64, "max": 4096, "step": 32}),
                 "num_frames": ("INT", {"default": 124, "min": 120, "max": 360, "step": 4}),
-                "steps": ("INT", {"default": 50, "min": 2, "max": 1000}),
+                "steps": ("INT", {"default": 24, "min": 2, "max": 1000}),
                 "filename_prefix": (
                     "STRING",
                     {"default": "orbitquant/minimax-h3", "multiline": False},
@@ -419,6 +454,7 @@ class OrbitQuantGenerateVideo:
         release: OrbitQuantRelease,
         prompt: str,
         task: str,
+        inference_profile: str,
         reference_path: str,
         seed: int,
         width: int,
@@ -452,6 +488,7 @@ class OrbitQuantGenerateVideo:
             filename=output_filename,
             prompt=prompt,
             task=task,
+            inference_profile=inference_profile,
             reference_path=reference_path,
             seed=int(seed),
             width=int(width),
@@ -473,6 +510,7 @@ class OrbitQuantGenerateVideo:
         release: OrbitQuantRelease,
         prompt: str,
         task: str,
+        inference_profile: str,
         reference_path: str,
         seed: int,
         width: int,
@@ -485,6 +523,7 @@ class OrbitQuantGenerateVideo:
             release,
             prompt,
             task,
+            inference_profile,
             reference_path,
             seed,
             width,

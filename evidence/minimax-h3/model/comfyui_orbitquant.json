@@ -10,6 +10,7 @@
     "width": 608,
     "height": 480,
     "num_frames": 124,
-    "steps": 50
+    "steps": 24,
+    "inference_profile": "balanced"
   }
 }

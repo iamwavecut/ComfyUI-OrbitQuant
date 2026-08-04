@@ -11,12 +11,12 @@ requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{ name = "WaveCut" }]
 dependencies = [
-  "orbitquant>=0.9.1,<0.10",
+  "orbitquant>=0.9.2,<0.10",
 ]
 
 [project.optional-dependencies]
 kernels = [
-  "orbitquant[hf,kernels]>=0.9.1,<0.10",
+  "orbitquant[hf,kernels]>=0.9.2,<0.10",
 ]
 dev = [
   "pytest>=8.4",

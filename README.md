@@ -44,7 +44,7 @@ For a manual clone, install the `orbitquant` package into the Python
 environment used by ComfyUI and provision the native kernels explicitly:
 
 ```bash
-python -m pip install "orbitquant>=0.9.1,<0.10"
+python -m pip install "orbitquant>=0.9.2,<0.10"
 python -m orbitquant.cli.main kernels-install
 ```
 
@@ -53,7 +53,7 @@ OrbitQuant with its kernel runtime extra. This provides the Triton fallback
 used when no native variant matches:
 
 ```bash
-python -m pip install "orbitquant[hf,kernels]>=0.9.1,<0.10"
+python -m pip install "orbitquant[hf,kernels]>=0.9.2,<0.10"
 ```
 
 If you install this node pack from PyPI, the same kernel runtime dependencies
@@ -115,46 +115,91 @@ path when packed kernels are not installed in the ComfyUI Python environment.
 
 ## MiniMax H3 W4A4 video
 
-The generic release nodes consume the Diffusers-native multicomponent release instead of the
-older single-component artifact layout described below. Download the private
-model into a local directory using the same environment as ComfyUI:
+The generic release nodes consume the Diffusers-native multicomponent release
+instead of the older single-component artifact layout described below. Download
+the public model into a local directory using the same environment as ComfyUI:
 
 ```bash
 hf download WaveCut/MiniMax-H3-OrbitQuant-W4A4 \
   --local-dir /models/MiniMax-H3-OrbitQuant-W4A4
-python -m pip install "orbitquant[hf,kernels]>=0.9.1,<0.10"
+python -m pip install "orbitquant[hf,kernels]>=0.9.2,<0.10"
 python -m pip install \
   "diffusers @ git+https://github.com/huggingface/diffusers.git@abc5e9bf71fd38f53cd471bc3acaa84bc5ecbfdc" \
   "transformers>=5.13,<6" accelerate av soundfile
 ```
 
-Build this two-node graph. The public node types are model-agnostic; H3-specific
-component and execution rules live in the release config and an internal
-allowlisted adapter, so another model family does not require another pair of
-ComfyUI nodes.
+On the RunPod ComfyUI image, start ComfyUI with its global allocator and offload
+layers disabled. The OrbitQuant generator subprocess then owns the bounded
+memory policy instead of competing with ComfyUI's DynamicVRAM and async-offload
+hooks:
+
+```bash
+python main.py --listen 0.0.0.0 --port 8188 \
+  --disable-cuda-malloc \
+  --disable-dynamic-vram \
+  --disable-async-offload
+```
+
+Load the [public workflow](evidence/minimax-h3/workflows/minimax-h3-t2va-ui.json)
+or build the same graph with `OrbitQuant Release Loader` and `OrbitQuant
+Generate Video`. The public node types are model-agnostic; H3-specific component
+and execution rules live in the release config and an internal allowlisted
+adapter, so another model family does not require another pair of nodes.
 
 1. Set `OrbitQuant Release Loader.model_path` to the downloaded
    directory.
 2. Connect its `release` output to `OrbitQuant Generate Video`.
 3. For T2VA keep `task=t2va`. For Ref2VA choose `ref2va` and set
    `reference_path` to a local image.
-4. Use `width=608`, `height=480`, and `steps=50` for the verified 480p recipe.
+4. Use `width=608`, `height=480`, and `steps=24` for the verified 480p recipe.
+5. Start with `inference_profile=balanced`; choose another profile only for its
+   documented memory/latency tradeoff.
 
-The official schedule has 50 sigma points and 49 denoiser forwards. MiniMax H3
+The release schedule uses 24 sigma points and 23 denoiser forwards. MiniMax H3
 requires 5–15 seconds at 24 FPS; `num_frames=124` is the shortest verified VAE
 packing sequence and is therefore the default smoke. The text encoder enters
-GPU memory for conditioning and is then moved back to RAM before the selected
-transformer enters GPU memory.
+GPU memory layer-by-layer for conditioning and is then moved back to RAM before
+the selected transformer runs.
 
-T2VA uses the lower-overhead manual stage policy. Ref2VA uses the upstream H3
-component manager to place the untouched source FP32 VAE for reference encoding.
-The text encoder returns to CPU after conditioning; the verified Ref2VA call
-peaked at 30.46 GiB of CUDA memory.
+### Inference profiles
+
+All measurements below use W4A4 native packed kernels, no exact INT8 weight
+cache, 608×480, 124 frames, 24 sigma points, and source FP32 VAEs. Process peaks
+include CUDA allocations outside PyTorch's own accounting.
+
+| Profile | Placement | Hardware | Task | Process peak | Denoise / generation |
+| --- | --- | --- | --- | ---: | ---: |
+| `balanced` (default) | streamed leaf offload, 12 GiB allocator cap | RTX PRO 6000 | T2VA | 6.36 GiB child; 6.90 GiB with idle ComfyUI | 46.68 s denoise |
+| `speed` | resident transformer | RTX PRO 6000 | T2VA | 21.14 GiB | 46.84 s denoise; 51.10 s generation |
+| `minimum_vram` | low-CPU-memory streamed leaf offload, 8 GiB cap | RTX 4090 | T2VA | 4.07 GiB | 154.25 s denoise; 188.70 s generation |
+| `speed` | resident `transformer_ref` | RTX PRO 6000 | Ref2VA | 24.06 GiB | 118.48 s denoise; 155.42 s generation |
+
+`balanced` is the Pareto default on the tested PRO 6000: streamed transfers
+overlap compute closely enough to match resident denoising while cutting the
+child's physical peak by about 70%. `minimum_vram` is the verified absolute
+minimum endpoint. `speed` removes transformer transfers when VRAM is available.
+Native-auto Torch Flash SDPA was the fastest supported attention path on the
+tested CUDA 13 / SM120 stack; SageAttention2's available binary did not contain
+SM120 code, and cuDNN was slower. These unsupported branches are not part of the
+public recipe.
+
+T2VA and Ref2VA both use sequential CUDA text conditioning. Ref2VA also encodes
+the reference through the untouched source FP32 visual VAE before loading the
+quantized `transformer_ref`. Visual decode uses tiled source FP32 VAE offload;
+the source FP32 audio VAE enters GPU only for its audio stage. Neither VAE is
+quantized.
 
 The node saves generation logs, per-step checkpoints, and the latent bundle as
 soon as each exists. Only after denoising succeeds does it decode with the
 untouched source FP32 VAEs. The output is a standard ComfyUI `VIDEO`, so the
-core preview and downstream video nodes work without VideoHelperSuite.
+core preview and downstream video nodes work without VideoHelperSuite. Decode
+also retains a high-quality CRF 1 yuv444p master next to the preview; the
+published HEVC example is derived from that master at CRF 10.
+
+The [proof bundle](evidence/minimax-h3/README.md) includes the official ComfyUI
+workflow-image export with embedded JSON, live `/prompt` results, CRF 1 and HEVC
+media, frame timelines, audio spectrum, exact revisions, and machine-readable
+measurements.
 
 ## Artifact Requirements
 

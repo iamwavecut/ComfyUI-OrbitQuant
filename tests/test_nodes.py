@@ -69,7 +69,7 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
     assert 'runtime_mode="auto_fused"' in readme
     assert "git clone https://github.com/iamwavecut/ComfyUI-OrbitQuant.git" in readme
     assert "git@github.com:iamwavecut/ComfyUI-OrbitQuant.git" not in readme
-    assert 'python -m pip install "orbitquant[hf,kernels]>=0.9.1,<0.10"' in readme
+    assert 'python -m pip install "orbitquant[hf,kernels]>=0.9.2,<0.10"' in readme
     assert 'python -m pip install "comfyui-orbitquant[kernels]"' in readme
     assert 'python -m pip install -e "/path/to/OrbitQuant[kernels]"' in readme
     assert 'runtime_mode="dequant_bf16"' in readme
@@ -78,14 +78,14 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
     assert "OrbitQuant Generate Video" in readme
     assert "source FP32 VAEs" in readme
     assert "608" in readme
-    assert "50 sigma points" in readme
+    assert "24 sigma points" in readme
 
 
 def test_pyproject_depends_on_public_orbitquant_release():
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
 
-    assert '"orbitquant>=0.9.1,<0.10"' in pyproject
-    assert '"orbitquant[hf,kernels]>=0.9.1,<0.10"' in pyproject
+    assert '"orbitquant>=0.9.2,<0.10"' in pyproject
+    assert '"orbitquant[hf,kernels]>=0.9.2,<0.10"' in pyproject
     assert "git+ssh://git@github.com/iamwavecut/OrbitQuant.git" not in pyproject
 
 
@@ -242,6 +242,7 @@ def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
         "release",
         "prompt",
         "task",
+        "inference_profile",
         "reference_path",
         "seed",
         "width",
@@ -250,6 +251,10 @@ def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
         "steps",
         "filename_prefix",
     ]
+    inference_profile = h3_generator_schema.kwargs["inputs"][3]
+    assert inference_profile["options"] == ["balanced", "speed", "minimum_vram"]
+    assert inference_profile["default"] == "balanced"
+    assert h3_generator_schema.kwargs["inputs"][9]["default"] == 24
 
 
 def test_v3_h3_nodes_delegate_and_return_video_preview(monkeypatch, tmp_path):
@@ -278,12 +283,13 @@ def test_v3_h3_nodes_delegate_and_return_video_preview(monkeypatch, tmp_path):
         release,
         "dynamic zoom",
         "t2va",
+        "balanced",
         "",
         42,
         608,
         480,
         124,
-        50,
+        24,
         "orbitquant/minimax-h3",
     )
 

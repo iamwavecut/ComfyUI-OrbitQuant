@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from comfyui_orbitquant import nodes
+from comfyui_orbitquant.minimax_h3 import INFERENCE_PROFILES
 
 try:
     from comfy_api.latest import ComfyExtension, io, ui
@@ -247,6 +248,11 @@ class OrbitQuantGenerateVideoV3(io.ComfyNode):
                     dynamic_prompts=True,
                 ),
                 io.Combo.Input("task", options=["t2va", "ref2va"], default="t2va"),
+                io.Combo.Input(
+                    "inference_profile",
+                    options=list(INFERENCE_PROFILES),
+                    default="balanced",
+                ),
                 io.String.Input("reference_path", default="", multiline=False),
                 io.Int.Input(
                     "seed",
@@ -258,7 +264,7 @@ class OrbitQuantGenerateVideoV3(io.ComfyNode):
                 io.Int.Input("width", default=608, min=64, max=4096, step=32),
                 io.Int.Input("height", default=480, min=64, max=4096, step=32),
                 io.Int.Input("num_frames", default=124, min=120, max=360, step=4),
-                io.Int.Input("steps", default=50, min=2, max=1000),
+                io.Int.Input("steps", default=24, min=2, max=1000),
                 io.String.Input(
                     "filename_prefix",
                     default="orbitquant/minimax-h3",
@@ -277,6 +283,7 @@ class OrbitQuantGenerateVideoV3(io.ComfyNode):
         release: Any,
         prompt: str,
         task: str,
+        inference_profile: str,
         reference_path: str,
         seed: int,
         width: int,
@@ -290,6 +297,7 @@ class OrbitQuantGenerateVideoV3(io.ComfyNode):
                 release,
                 prompt,
                 task,
+                inference_profile,
                 reference_path,
                 seed,
                 width,

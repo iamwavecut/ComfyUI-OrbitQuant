@@ -17,12 +17,13 @@
       ],
       "prompt": "Single continuous cinematic shot of the referenced astronaut. The astronaut turns toward the camera and raises one gloved hand as the camera makes a fast smooth push-in toward the helmet visor. The face, eyes, visor reflections, suit patches, and fabric texture remain coherent during motion. No cuts.",
       "task": "ref2va",
+      "inference_profile": "speed",
       "reference_path": "/workspace/evidence/astronaut.png",
       "seed": 314159,
       "width": 608,
       "height": 480,
       "num_frames": 124,
-      "steps": 50,
+      "steps": 24,
       "filename_prefix": "orbitquant/minimax-h3-ref2va"
     },
     "_meta": {

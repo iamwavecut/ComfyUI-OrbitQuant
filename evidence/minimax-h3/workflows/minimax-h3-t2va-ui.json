@@ -32,7 +32,7 @@
       "outputs": [],
       "title": "Note: MiniMax H3 OrbitQuant",
       "properties": {},
-      "widgets_values": ["MINIMAX H3 — ORBITQUANT W4A4\n\nThis workflow follows ComfyUI's bundled\nMiniMax H3 Text to Video preset.\n\nLayout:\n- model and usage notes on the left\n- compact generation in the center\n- core Save Video on the right\n\nOfficial preset:\nComfy-Org/workflow_templates\nvideo_minimax_h3_t2v.json\n\nKEY INPUTS\n\nprompt\nDescribe the shot, camera motion, dialogue,\nsound effects, and music in one block.\n\ntask\nt2va for text-to-video. Use ref2va plus a\nlocal reference_path for reference-to-video.\n\nwidth / height\nVerified at 608 × 480.\n\nnum_frames\n124 frames: the shortest verified\nfive-second H3 packing sequence.\n\nsteps\n50 sigma points / 49 denoiser forwards.\n\nOFFLOAD AND PRECISION\n\nThe text encoder enters GPU for conditioning\nand returns to CPU afterward.\n\nT2VA uses manual stage offload. Ref2VA uses\nH3 ComponentsManager for source FP32 VAE\nreference encoding. Visual and audio decode\nuse untouched source FP32 VAEs."],
+      "widgets_values": ["MINIMAX H3 — ORBITQUANT W4A4\n\nThis workflow follows ComfyUI's bundled\nMiniMax H3 Text to Video preset.\n\nLayout:\n- model and usage notes on the left\n- compact generation in the center\n- core Save Video on the right\n\nOfficial preset:\nComfy-Org/workflow_templates\nvideo_minimax_h3_t2v.json\n\nKEY INPUTS\n\nprompt\nDescribe the shot, camera motion, dialogue,\nsound effects, and music in one block.\n\ntask\nt2va for text-to-video. Use ref2va plus a\nlocal reference_path for reference-to-video.\n\ninference_profile\nbalanced is the safe default; speed keeps the\ntransformer resident; minimum_vram streams\nweights with low-CPU-memory loading.\n\nwidth / height\nVerified at 608 × 480.\n\nnum_frames\n124 frames: the shortest verified\nfive-second H3 packing sequence.\n\nsteps\n24 sigma points / 23 denoiser forwards.\n\nOFFLOAD AND PRECISION\n\nThe text encoder executes sequentially on GPU\nfor conditioning and returns to CPU afterward.\nRef2VA reference encoding uses tiled sequential\nGPU VAE execution. Visual and audio decode use\nuntouched source FP32 VAEs."],
       "color": "#222",
       "bgcolor": "#000"
     },
@@ -65,6 +65,7 @@
         {"name": "release", "type": "ORBITQUANT_RELEASE", "link": 1},
         {"name": "prompt", "type": "STRING", "widget": {"name": "prompt"}, "link": null},
         {"name": "task", "type": "COMBO", "widget": {"name": "task"}, "link": null},
+        {"name": "inference_profile", "type": "COMBO", "widget": {"name": "inference_profile"}, "link": null},
         {"name": "reference_path", "type": "STRING", "widget": {"name": "reference_path"}, "link": null},
         {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": null},
         {"name": "width", "type": "INT", "widget": {"name": "width"}, "link": null},
@@ -80,14 +81,15 @@
       "title": "Generate Video (Verified 608 × 480)",
       "properties": {"Node name for S&R": "OrbitQuantGenerateVideo", "previewExposures": []},
       "widgets_values": [
-        "Single continuous live-action shot of a young woman running toward the camera in rain. The camera rapidly dollies backward, then smoothly pushes into a tight close-up while she turns her head and says in Russian: «Я здесь». Stable face identity, natural eyes and lips, coherent wet hair and jacket texture, strong motion, no cuts.",
+        "Create one uninterrupted five-second photorealistic cinematic shot inside a vast abandoned Victorian astronomical conservatory during a midnight thunderstorm. Begin centimetres above a flooded mosaic floor on an extreme macro view of a scratched silver compass as a raindrop creates concentric ripples through reflected amber lamps. In the background, the same young female astronomer with dark hazel eyes, a small scar through her right eyebrow, rain-darkened curls and a burgundy wool coat runs toward an antique brass orrery. The camera performs one fast but smooth backward-and-upward crane with a clockwise half-orbit, passes cleanly between rotating copper rings, racks focus from the compass to her face, then transitions into a controlled push-in. Preserve strong physical parallax, straight architecture, attached compass parts, stable orrery topology, readable glass planets, plausible splashes, coherent wet fabric, fixed facial identity, aligned eyes, natural lips, five stable fingers and consistent hairline throughout every frame. A blue-white lightning flash crosses the dome and illuminates the woman, water, brass and glass coherently, followed by physically delayed thunder. In the final close-up she catches her breath, looks into the lens, grips a small brass lever and says clearly in Russian: «Не бойся грома — смотри, как небо запоминает нас». Synchronize her lips and preserve a single natural voice. Build continuous stereo sound from rain, footsteps, brass gears, wind through cracked glass, lightning and thunder; no electronic squeal, duplicated speech or clipping. Use believable anamorphic photography, restrained halation, realistic skin, natural motion blur, coherent reflections and subtle sensor grain. No cuts, temporal resets, face morphing, crossed eyes, melting mouth, texture crawling, checkerboard grids, duplicated limbs, subtitles, logos, watermarks or black frames.",
         "t2va",
+        "balanced",
         "",
         42,
         608,
         480,
         124,
-        50,
+        24,
         "orbitquant/minimax-h3-t2va"
       ]
     },
@@ -120,7 +122,7 @@
       "outputs": [],
       "title": "Note: Verified Profile",
       "properties": {},
-      "widgets_values": ["VERIFIED 480P PROFILE\n\nwidth                 608\nheight                480\nframes                124\nfps                    24\nsigma points           50\ndenoiser forwards      49\nvisual VAE     source FP32\naudio VAE      source FP32\n\nH3 accepts 5–15 seconds. The runner rejects\nshorter frame counts before allocating the\ndenoiser, preventing expensive invalid jobs.\n\nScheduler checkpoints, the latent bundle,\nmetrics, and stage logs are persisted as soon\nas each artifact exists."],
+      "widgets_values": ["VERIFIED 480P PROFILE\n\nwidth                 608\nheight                480\nframes                124\nfps                    24\nsigma points           24\ndenoiser forwards      23\ndefault profile  balanced\nvisual VAE     source FP32\naudio VAE      source FP32\n\nH3 accepts 5–15 seconds. The runner rejects\nshorter frame counts before allocating the\ndenoiser, preventing expensive invalid jobs.\n\nScheduler checkpoints, the latent bundle,\nmetrics, and stage logs are persisted as soon\nas each artifact exists."],
       "color": "#222",
       "bgcolor": "#000"
     }

@@ -137,9 +137,11 @@ def test_runner_persists_latents_then_decodes_with_source_fp32_vaes(tmp_path, mo
                 encoding="utf-8",
             )
         else:
-            output = Path(command[command.index("--output") + 1])
-            output.write_bytes(b"mp4")
-            output.with_suffix(".decode.metrics.json").write_text(
+            master = Path(command[command.index("--output") + 1])
+            preview = Path(command[command.index("--preview-output") + 1])
+            master.write_bytes(b"master")
+            preview.write_bytes(b"preview")
+            master.with_suffix(".decode.metrics.json").write_text(
                 json.dumps({"status": "pass", "decode_seconds": 1.5}),
                 encoding="utf-8",
             )
@@ -172,14 +174,135 @@ def test_runner_persists_latents_then_decodes_with_source_fp32_vaes(tmp_path, mo
     assert generation[generation.index("--num-frames") + 1] == "124"
     assert generation.index("--save-latents") < generation.index("--checkpoint-dir")
     assert decode[decode.index("--vae") + 1] == str(release.path / "vae")
-    assert decode[decode.index("--vae-dtype") + 1] == "fp32"
     assert decode[decode.index("--audio-vae") + 1] == str(release.path / "audio_vae")
-    assert decode[decode.index("--audio-vae-dtype") + 1] == "fp32"
+    assert "--vae-dtype" not in decode
+    assert "--audio-vae-dtype" not in decode
+    assert decode[decode.index("--preview-output") + 1] == str(output_dir / "proof.mp4")
+    assert decode[decode.index("--output") + 1] == str(
+        output_dir / "proof.master-crf1.mp4"
+    )
     assert result.output_path == output_dir / "proof.mp4"
+    assert result.master_path == output_dir / "proof.master-crf1.mp4"
     assert result.latents_path.is_file()
     assert result.generation_metrics["generation_seconds"] == 12.5
     assert result.decode_metrics["decode_seconds"] == 1.5
     assert result.report_path.is_file()
+
+
+@pytest.mark.parametrize(
+    ("profile", "task", "required_flags", "forbidden_flags"),
+    [
+        (
+            "speed",
+            "t2va",
+            {"--manual-stage-offload", "--text-encoder-sequential-offload"},
+            {
+                "--transformer-group-offload-type",
+                "--group-offload-use-stream",
+                "--group-offload-low-cpu-mem-usage",
+                "--cuda-memory-cap-gib",
+                "--w4a4-int8-weight-cache",
+            },
+        ),
+        (
+            "balanced",
+            "t2va",
+            {
+                "--manual-stage-offload",
+                "--text-encoder-sequential-offload",
+                "--transformer-group-offload-type",
+                "--group-offload-use-stream",
+                "--cuda-memory-cap-gib",
+            },
+            {
+                "--disable-stream-buffer-overlay",
+                "--group-offload-low-cpu-mem-usage",
+                "--w4a4-int8-weight-cache",
+            },
+        ),
+        (
+            "minimum_vram",
+            "t2va",
+            {
+                "--manual-stage-offload",
+                "--text-encoder-sequential-offload",
+                "--transformer-group-offload-type",
+                "--group-offload-use-stream",
+                "--group-offload-low-cpu-mem-usage",
+                "--cuda-memory-cap-gib",
+            },
+            {"--disable-stream-buffer-overlay", "--w4a4-int8-weight-cache"},
+        ),
+        (
+            "speed",
+            "ref2va",
+            {
+                "--manual-stage-offload",
+                "--text-encoder-sequential-offload",
+                "--reference-vae-sequential-offload",
+                "--reference-vae-tile-size",
+            },
+            {
+                "--cuda-memory-cap-gib",
+                "--offload-reserve-margin",
+                "--w4a4-int8-weight-cache",
+            },
+        ),
+    ],
+)
+def test_runner_maps_validated_inference_profiles_to_generator_flags(
+    tmp_path,
+    monkeypatch,
+    profile,
+    task,
+    required_flags,
+    forbidden_flags,
+):
+    release = minimax_h3.MiniMaxH3Release.from_path(_make_release(tmp_path))
+    reference = tmp_path / "reference.png"
+    reference.write_bytes(b"png")
+    commands: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        if "run_quantized_example.py" in command[1]:
+            Path(command[command.index("--save-latents") + 1]).write_bytes(b"latents")
+            output = Path(command[command.index("--output") + 1])
+            output.with_suffix(".metrics.json").write_text('{"status":"pass"}')
+        else:
+            master = Path(command[command.index("--output") + 1])
+            preview = Path(command[command.index("--preview-output") + 1])
+            master.write_bytes(b"master")
+            preview.write_bytes(b"preview")
+            master.with_suffix(".decode.metrics.json").write_text('{"status":"pass"}')
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(minimax_h3.subprocess, "run", fake_run)
+    result = minimax_h3.MiniMaxH3Runner(release).run(
+        output_dir=tmp_path / profile / task,
+        filename="proof.mp4",
+        prompt="dynamic zoom",
+        task=task,
+        inference_profile=profile,
+        reference_path=str(reference) if task == "ref2va" else "",
+        seed=42,
+        width=608,
+        height=480,
+        num_frames=124,
+        steps=24,
+    )
+
+    generation = commands[0]
+    assert required_flags <= set(generation)
+    assert set(generation).isdisjoint(forbidden_flags)
+    if "--transformer-group-offload-type" in generation:
+        assert generation[generation.index("--transformer-group-offload-type") + 1] == "leaf_level"
+    if "--reference-vae-tile-size" in generation:
+        assert generation[generation.index("--reference-vae-tile-size") + 1] == "128"
+    if "--cuda-memory-cap-gib" in generation:
+        expected_cap = "12" if profile == "balanced" else "8"
+        assert generation[generation.index("--cuda-memory-cap-gib") + 1] == expected_cap
+    assert result.report["inference_profile"] == profile
 
 
 def test_runner_adds_ref2va_reference_and_rejects_missing_reference(tmp_path, monkeypatch):
@@ -195,9 +318,11 @@ def test_runner_adds_ref2va_reference_and_rejects_missing_reference(tmp_path, mo
             output = Path(command[command.index("--output") + 1])
             output.with_suffix(".metrics.json").write_text('{"status":"pass"}')
         else:
-            output = Path(command[command.index("--output") + 1])
-            output.write_bytes(b"mp4")
-            output.with_suffix(".decode.metrics.json").write_text('{"status":"pass"}')
+            master = Path(command[command.index("--output") + 1])
+            preview = Path(command[command.index("--preview-output") + 1])
+            master.write_bytes(b"master")
+            preview.write_bytes(b"preview")
+            master.with_suffix(".decode.metrics.json").write_text('{"status":"pass"}')
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(minimax_h3.subprocess, "run", fake_run)
@@ -219,8 +344,10 @@ def test_runner_adds_ref2va_reference_and_rejects_missing_reference(tmp_path, mo
     generation = commands[0]
     assert generation[generation.index("--task") + 1] == "ref2va"
     assert generation[generation.index("--reference") + 1] == str(reference.resolve())
-    assert "--manual-stage-offload" not in generation
-    assert generation[generation.index("--offload-reserve-margin") + 1] == "64GB"
+    assert "--manual-stage-offload" in generation
+    assert "--text-encoder-sequential-offload" in generation
+    assert "--reference-vae-sequential-offload" in generation
+    assert "--offload-reserve-margin" not in generation
 
     with pytest.raises(ValueError, match="reference"):
         runner.run(
@@ -298,6 +425,16 @@ def test_generator_seed_is_fixed_without_implicit_control_widget():
     assert seed_options["control_after_generate"] is False
 
 
+def test_generator_defaults_to_balanced_profile_and_24_sigma_points():
+    required = minimax_h3.OrbitQuantGenerateVideo.INPUT_TYPES()["required"]
+
+    assert required["inference_profile"] == (
+        ["balanced", "speed", "minimum_vram"],
+        {"default": "balanced"},
+    )
+    assert required["steps"][1]["default"] == 24
+
+
 def test_generator_node_returns_standard_video_and_preview(tmp_path, monkeypatch):
     release = minimax_h3.MiniMaxH3Release.from_path(_make_release(tmp_path))
     output_root = tmp_path / "comfy-output"
@@ -348,18 +485,20 @@ def test_generator_node_returns_standard_video_and_preview(tmp_path, monkeypatch
         generic_release,
         "dynamic dolly zoom",
         "t2va",
+        "balanced",
         "",
         42,
         608,
         480,
         124,
-        50,
+        24,
         "orbitquant/minimax-h3",
     )
 
     assert calls[0]["width"] == 608
     assert calls[0]["height"] == 480
-    assert calls[0]["steps"] == 50
+    assert calls[0]["inference_profile"] == "balanced"
+    assert calls[0]["steps"] == 24
     assert response["result"][0] is video_marker
     assert json.loads(response["result"][1])["status"] == "pass"
     assert response["ui"]["images"] == [
