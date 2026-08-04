@@ -104,9 +104,11 @@ def test_runner_persists_latents_then_decodes_with_source_fp32_vaes(tmp_path, mo
     release = minimax_h3.MiniMaxH3Release.from_path(_make_release(tmp_path))
     output_dir = tmp_path / "output"
     commands: list[list[str]] = []
+    environments: list[dict[str, str]] = []
 
     def fake_run(command, **kwargs):
         commands.append(command)
+        environments.append(kwargs["env"])
         if "run_quantized_example.py" in command[1]:
             latents = Path(command[command.index("--save-latents") + 1])
             latents.parent.mkdir(parents=True, exist_ok=True)
@@ -141,6 +143,7 @@ def test_runner_persists_latents_then_decodes_with_source_fp32_vaes(tmp_path, mo
     )
 
     assert len(commands) == 2
+    assert [environment["PYTHONUNBUFFERED"] for environment in environments] == ["1", "1"]
     generation, decode = commands
     assert generation[0] == minimax_h3.sys.executable
     assert "--manual-stage-offload" in generation

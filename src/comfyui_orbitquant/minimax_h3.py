@@ -136,6 +136,8 @@ class MiniMaxH3Runner:
     @staticmethod
     def _run_stage(command: list[str], *, stage: str, log_path: Path, cwd: Path) -> None:
         log_path.parent.mkdir(parents=True, exist_ok=True)
+        environment = os.environ.copy()
+        environment["PYTHONUNBUFFERED"] = "1"
         with log_path.open("w", encoding="utf-8") as log_file:
             try:
                 subprocess.run(
@@ -144,7 +146,7 @@ class MiniMaxH3Runner:
                     stdout=log_file,
                     stderr=subprocess.STDOUT,
                     check=True,
-                    env=os.environ.copy(),
+                    env=environment,
                 )
             except subprocess.CalledProcessError as exc:
                 raise RuntimeError(

@@ -1,0 +1,32 @@
+{
+  "1": {
+    "class_type": "OrbitQuantMiniMaxH3ReleaseLoader",
+    "inputs": {
+      "model_path": "/workspace/models/MiniMax-H3-OrbitQuant-W4A4"
+    },
+    "_meta": {
+      "title": "OrbitQuant MiniMax H3 Release Loader"
+    }
+  },
+  "2": {
+    "class_type": "OrbitQuantMiniMaxH3GenerateVideo",
+    "inputs": {
+      "release": [
+        "1",
+        0
+      ],
+      "prompt": "Single continuous live-action shot of a young woman running toward the camera in rain. The camera rapidly dollies backward, then smoothly pushes into a tight close-up while she turns her head and says in Russian: «Я здесь». Stable face identity, natural eyes and lips, coherent wet hair and jacket texture, strong motion, no cuts.",
+      "task": "t2va",
+      "reference_path": "",
+      "seed": 42,
+      "width": 608,
+      "height": 480,
+      "num_frames": 44,
+      "steps": 50,
+      "filename_prefix": "orbitquant/minimax-h3-t2va"
+    },
+    "_meta": {
+      "title": "OrbitQuant MiniMax H3 Generate Video"
+    }
+  }
+}

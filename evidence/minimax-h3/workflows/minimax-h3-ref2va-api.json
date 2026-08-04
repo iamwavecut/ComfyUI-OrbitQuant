@@ -1,0 +1,32 @@
+{
+  "1": {
+    "class_type": "OrbitQuantMiniMaxH3ReleaseLoader",
+    "inputs": {
+      "model_path": "/workspace/models/MiniMax-H3-OrbitQuant-W4A4"
+    },
+    "_meta": {
+      "title": "OrbitQuant MiniMax H3 Release Loader"
+    }
+  },
+  "2": {
+    "class_type": "OrbitQuantMiniMaxH3GenerateVideo",
+    "inputs": {
+      "release": [
+        "1",
+        0
+      ],
+      "prompt": "Single continuous cinematic shot of the referenced astronaut. The astronaut turns toward the camera and raises one gloved hand as the camera makes a fast smooth push-in toward the helmet visor. The face, eyes, visor reflections, suit patches, and fabric texture remain coherent during motion. No cuts.",
+      "task": "ref2va",
+      "reference_path": "/workspace/evidence/astronaut.png",
+      "seed": 314159,
+      "width": 608,
+      "height": 480,
+      "num_frames": 44,
+      "steps": 50,
+      "filename_prefix": "orbitquant/minimax-h3-ref2va"
+    },
+    "_meta": {
+      "title": "OrbitQuant MiniMax H3 Generate Video"
+    }
+  }
+}

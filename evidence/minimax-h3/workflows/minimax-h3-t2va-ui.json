@@ -1,0 +1,57 @@
+{
+  "last_node_id": 2,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "OrbitQuantMiniMaxH3ReleaseLoader",
+      "pos": [80, 180],
+      "size": [390, 140],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "release", "type": "ORBITQUANT_H3_RELEASE", "links": [1], "slot_index": 0},
+        {"name": "summary_json", "type": "STRING", "links": null, "slot_index": 1}
+      ],
+      "properties": {"Node name for S&R": "OrbitQuantMiniMaxH3ReleaseLoader"},
+      "widgets_values": ["/workspace/models/MiniMax-H3-OrbitQuant-W4A4"]
+    },
+    {
+      "id": 2,
+      "type": "OrbitQuantMiniMaxH3GenerateVideo",
+      "pos": [560, 80],
+      "size": [520, 500],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"name": "release", "type": "ORBITQUANT_H3_RELEASE", "link": 1}
+      ],
+      "outputs": [
+        {"name": "video", "type": "VIDEO", "links": null, "slot_index": 0},
+        {"name": "report_json", "type": "STRING", "links": null, "slot_index": 1}
+      ],
+      "properties": {"Node name for S&R": "OrbitQuantMiniMaxH3GenerateVideo"},
+      "widgets_values": [
+        "Single continuous live-action shot of a young woman running toward the camera in rain. The camera rapidly dollies backward, then smoothly pushes into a tight close-up while she turns her head and says in Russian: «Я здесь». Stable face identity, natural eyes and lips, coherent wet hair and jacket texture, strong motion, no cuts.",
+        "t2va",
+        "",
+        42,
+        608,
+        480,
+        44,
+        50,
+        "orbitquant/minimax-h3-t2va"
+      ]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "ORBITQUANT_H3_RELEASE"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
