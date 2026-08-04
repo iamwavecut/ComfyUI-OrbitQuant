@@ -1,0 +1,28 @@
+{
+  "status": "public_audit_passed",
+  "repo_id": "WaveCut/MiniMax-H3-OrbitQuant-W4A4",
+  "revision": "fa2d87b221910e0d9cb457151e5e14153362f1e9",
+  "private": false,
+  "commit_count": 1,
+  "file_count": 113,
+  "total_bytes": 67542922354,
+  "anonymous_model_page_http_status": 200,
+  "anonymous_t2va_video_http_status": 206,
+  "forbidden_cache_files": [],
+  "old_browser_screenshot_present": false,
+  "workflow_image_export": {
+    "file": "comfyui/workflow-export.png",
+    "width": 6120,
+    "height": 2620,
+    "embedded_workflow": true,
+    "embedded_node_count": 6,
+    "embedded_link_count": 2,
+    "missing_nodes_after_png_import": [],
+    "sha256": "df49d477b234e71c23e0a7d457d66315408333db62433885db4b20f3606328f0"
+  },
+  "verified_sha256": {
+    "README.md": "7b140b9f115e729213add98ce65e61c039e11ceb900228d84e109d21275ba046",
+    "comfyui/report.json": "f8bbd080f6676741ce5bd4d1c5dfda874d7077a3c3cc566a6e6c2e5fd0ea1a32",
+    "comfyui/workflows/MiniMax-H3-OrbitQuant-T2VA.json": "7c1a82427b80203e4252726a0ab3a336a6859fe2ff43302a07de00bce5722acb"
+  }
+}

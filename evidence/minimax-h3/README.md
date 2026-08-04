@@ -18,6 +18,7 @@ the same six-node workflow, two links, and verified 608×480 generation values.
 - [T2VA API proof workflow](workflows/minimax-h3-t2va-api.json)
 - [Ref2VA API proof workflow](workflows/minimax-h3-ref2va-api.json)
 - [Machine-readable report](report.json)
+- [Publication audit](publication.json)
 
 The layout and documentation structure are derived from Comfy-Org's bundled
 [`video_minimax_h3_t2v.json`](https://github.com/Comfy-Org/workflow_templates/blob/7653f1cdef1d92394b6ef9946018c0a8aa4136b8/templates/video_minimax_h3_t2v.json):
@@ -64,3 +65,11 @@ lips, motion ghosting, texture breakup, and grid artifacts. Both runs passed.
 The exact public graph also reached terminal `pass` through `/prompt`
 (`823b3407-ae85-43fd-b51a-129ea7a11f4d`) and core `SaveVideo` produced a
 second valid 608×480 H.264/AAC file.
+
+## Published release
+
+The public Hugging Face release is revision
+[`fa2d87b221910e0d9cb457151e5e14153362f1e9`](https://huggingface.co/WaveCut/MiniMax-H3-OrbitQuant-W4A4/commit/fa2d87b221910e0d9cb457151e5e14153362f1e9).
+It has one commit, 113 files, no `.cache`, `__pycache__`, or `.pyc` files, and
+the independently audited byte total is 67,542,922,354. Anonymous requests
+returned HTTP 200 for the model page and HTTP 206 for a video range request.
