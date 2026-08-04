@@ -43,8 +43,8 @@ run report and is an output node.
 - Reject absent runner/decoder scripts and component directories before GPU
   execution.
 - Require a reference image for `ref2va`.
-- Require positive dimensions, at least four frames, and at least two sigma
-  points.
+- Require positive dimensions, 120–360 requested frames (the H3 5–15 second
+  range before VAE packing), and at least two sigma points.
 - Preserve stage logs, metrics, checkpoints, and latents next to the output.
 - Surface subprocess failure with the stage name and log path.
 

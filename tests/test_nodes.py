@@ -280,7 +280,7 @@ def test_v3_h3_nodes_delegate_and_return_video_preview(monkeypatch, tmp_path):
         42,
         608,
         480,
-        44,
+        124,
         50,
         "orbitquant/minimax-h3",
     )

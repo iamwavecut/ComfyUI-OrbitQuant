@@ -21,7 +21,7 @@
       "seed": 314159,
       "width": 608,
       "height": 480,
-      "num_frames": 44,
+      "num_frames": 124,
       "steps": 50,
       "filename_prefix": "orbitquant/minimax-h3-ref2va"
     },

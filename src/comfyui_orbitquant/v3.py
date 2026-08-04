@@ -253,7 +253,7 @@ class OrbitQuantMiniMaxH3GenerateVideoV3(io.ComfyNode):
                 io.Int.Input("seed", default=42, min=0, max=2**63 - 1),
                 io.Int.Input("width", default=608, min=64, max=4096, step=32),
                 io.Int.Input("height", default=480, min=64, max=4096, step=32),
-                io.Int.Input("num_frames", default=44, min=4, max=4096, step=4),
+                io.Int.Input("num_frames", default=124, min=120, max=360, step=4),
                 io.Int.Input("steps", default=50, min=2, max=1000),
                 io.String.Input(
                     "filename_prefix",

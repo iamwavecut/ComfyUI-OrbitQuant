@@ -138,10 +138,11 @@ Build this two-node graph:
    `reference_path` to a local image.
 4. Use `width=608`, `height=480`, and `steps=50` for the verified 480p recipe.
 
-The official schedule has 50 sigma points and 49 denoiser forwards. The default
-44-frame smoke is economical; raise `num_frames` to 124 for the full model-card
-duration. The text encoder enters GPU memory for conditioning and is then moved
-back to RAM before the selected transformer enters GPU memory.
+The official schedule has 50 sigma points and 49 denoiser forwards. MiniMax H3
+requires 5–15 seconds at 24 FPS; `num_frames=124` is the shortest verified VAE
+packing sequence and is therefore the default smoke. The text encoder enters
+GPU memory for conditioning and is then moved back to RAM before the selected
+transformer enters GPU memory.
 
 The node saves generation logs, per-step checkpoints, and the latent bundle as
 soon as each exists. Only after denoising succeeds does it decode with the

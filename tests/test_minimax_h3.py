@@ -138,7 +138,7 @@ def test_runner_persists_latents_then_decodes_with_source_fp32_vaes(tmp_path, mo
         seed=42,
         width=608,
         height=480,
-        num_frames=44,
+        num_frames=124,
         steps=50,
     )
 
@@ -151,7 +151,7 @@ def test_runner_persists_latents_then_decodes_with_source_fp32_vaes(tmp_path, mo
     assert generation[generation.index("--width") + 1] == "608"
     assert generation[generation.index("--height") + 1] == "480"
     assert generation[generation.index("--steps") + 1] == "50"
-    assert generation[generation.index("--num-frames") + 1] == "44"
+    assert generation[generation.index("--num-frames") + 1] == "124"
     assert generation.index("--save-latents") < generation.index("--checkpoint-dir")
     assert decode[decode.index("--vae") + 1] == str(release.path / "vae")
     assert decode[decode.index("--vae-dtype") + 1] == "fp32"
@@ -194,7 +194,7 @@ def test_runner_adds_ref2va_reference_and_rejects_missing_reference(tmp_path, mo
         seed=7,
         width=608,
         height=480,
-        num_frames=44,
+        num_frames=124,
         steps=50,
     )
 
@@ -212,7 +212,7 @@ def test_runner_adds_ref2va_reference_and_rejects_missing_reference(tmp_path, mo
             seed=7,
             width=608,
             height=480,
-            num_frames=44,
+            num_frames=124,
             steps=50,
         )
 
@@ -229,6 +229,24 @@ def test_runner_surfaces_failed_stage_and_log_path(tmp_path, monkeypatch):
         minimax_h3.MiniMaxH3Runner(release).run(
             output_dir=tmp_path / "out",
             filename="failure.mp4",
+            prompt="zoom",
+            task="t2va",
+            reference_path="",
+            seed=1,
+            width=608,
+            height=480,
+            num_frames=124,
+            steps=50,
+        )
+
+
+def test_runner_rejects_frame_counts_below_h3_five_second_minimum(tmp_path):
+    release = minimax_h3.MiniMaxH3Release.from_path(_make_release(tmp_path))
+
+    with pytest.raises(ValueError, match="120.*360"):
+        minimax_h3.MiniMaxH3Runner(release).run(
+            output_dir=tmp_path / "out",
+            filename="too-short.mp4",
             prompt="zoom",
             task="t2va",
             reference_path="",
@@ -305,7 +323,7 @@ def test_generator_node_returns_standard_video_and_preview(tmp_path, monkeypatch
         42,
         608,
         480,
-        44,
+        124,
         50,
         "orbitquant/minimax-h3",
     )

@@ -174,8 +174,11 @@ class MiniMaxH3Runner:
             raise ValueError(f"MiniMax H3 task must be t2va or ref2va, got {task!r}")
         if width <= 0 or height <= 0:
             raise ValueError("MiniMax H3 width and height must be positive")
-        if num_frames < 4:
-            raise ValueError("MiniMax H3 num_frames must be at least 4")
+        if not 120 <= num_frames <= 360:
+            raise ValueError(
+                "MiniMax H3 num_frames must be between 120 and 360 before "
+                "the video VAE rounds to its 17 * n + 5 packing sequence"
+            )
         if steps < 2:
             raise ValueError("MiniMax H3 steps must include at least two sigma points")
         if Path(filename).name != filename or Path(filename).suffix.lower() != ".mp4":
@@ -337,7 +340,7 @@ class OrbitQuantMiniMaxH3GenerateVideo:
                 "seed": ("INT", {"default": 42, "min": 0, "max": 2**63 - 1}),
                 "width": ("INT", {"default": 608, "min": 64, "max": 4096, "step": 32}),
                 "height": ("INT", {"default": 480, "min": 64, "max": 4096, "step": 32}),
-                "num_frames": ("INT", {"default": 44, "min": 4, "max": 4096, "step": 4}),
+                "num_frames": ("INT", {"default": 124, "min": 120, "max": 360, "step": 4}),
                 "steps": ("INT", {"default": 50, "min": 2, "max": 1000}),
                 "filename_prefix": (
                     "STRING",
