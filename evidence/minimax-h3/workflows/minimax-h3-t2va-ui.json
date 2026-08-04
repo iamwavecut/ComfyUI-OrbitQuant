@@ -6,7 +6,7 @@
   "nodes": [
     {
       "id": 117,
-      "type": "MarkdownNote",
+      "type": "Note",
       "pos": [-2550, 4840],
       "size": [440, 740],
       "flags": {},
@@ -16,13 +16,13 @@
       "outputs": [],
       "title": "Note: Model Links",
       "properties": {},
-      "widgets_values": ["## Model Links\n\n- [🤗 WaveCut/MiniMax-H3-OrbitQuant-W4A4](https://huggingface.co/WaveCut/MiniMax-H3-OrbitQuant-W4A4)\n- [ComfyUI-OrbitQuant nodes](https://github.com/iamwavecut/ComfyUI-OrbitQuant/tree/feature/minimax-h3-comfyui)\n- [Original MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3)\n\n## Model Storage Location\n\nDownload the complete release as one directory:\n\n```\n📂 models/\n└── 📂 MiniMax-H3-OrbitQuant-W4A4/\n    ├── transformer/          # W4A4\n    ├── transformer_ref/      # W4A4\n    ├── text_encoder/         # W4A4\n    ├── vae/                  # source FP32\n    ├── audio_vae/            # source FP32\n    ├── scripts/\n    ├── quantization_manifest.json\n    └── comfyui_orbitquant.json\n```\n\nSet that directory in **OrbitQuant Release Loader**. The node selects an allowlisted internal adapter from the release config; there are no model-specific H3 node classes.\n\n## Runtime\n\nUse ComfyUI current plus `orbitquant[hf,kernels]>=0.9.1,<0.10` and the pinned H3 Diffusers revision documented in the model card."],
+      "widgets_values": ["MODEL AND NODE LINKS\n\nModel release:\nhuggingface.co/WaveCut/MiniMax-H3-OrbitQuant-W4A4\n\nNode pack:\ngithub.com/iamwavecut/ComfyUI-OrbitQuant\n\nOriginal model:\nhuggingface.co/MiniMaxAI/MiniMax-H3\n\nMODEL DIRECTORY\n\nmodels/MiniMax-H3-OrbitQuant-W4A4/\n  transformer/       W4A4\n  transformer_ref/   W4A4\n  text_encoder/      W4A4\n  vae/               source FP32\n  audio_vae/         source FP32\n  scripts/\n  quantization_manifest.json\n  comfyui_orbitquant.json\n\nSet this directory in OrbitQuant Release Loader. Release configuration selects an allowlisted internal adapter; public node classes stay model-agnostic.\n\nRUNTIME\n\nUse current ComfyUI, orbitquant[hf,kernels] 0.9.x, and the H3 Diffusers revision pinned in the model card."],
       "color": "#222",
       "bgcolor": "#000"
     },
     {
       "id": 116,
-      "type": "MarkdownNote",
+      "type": "Note",
       "pos": [-2080, 4840],
       "size": [450, 740],
       "flags": {},
@@ -32,7 +32,7 @@
       "outputs": [],
       "title": "Note: MiniMax H3 OrbitQuant",
       "properties": {},
-      "widgets_values": ["## MiniMax H3 — OrbitQuant W4A4\n\nThis public workflow follows ComfyUI's bundled **MiniMax H3 Text to Video** preset: model links and usage notes on the left, one compact generation node in the center, and the standard **Save Video** output on the right.\n\nUpstream preset: [`video_minimax_h3_t2v.json`](https://github.com/Comfy-Org/workflow_templates/blob/7653f1cdef1d92394b6ef9946018c0a8aa4136b8/templates/video_minimax_h3_t2v.json).\n\n## About this workflow\n\n**Key inputs**\n\n- **prompt**: describe the shot, camera motion, dialogue, sound effects, and music in one block\n- **task**: `t2va` for text-to-video; `ref2va` uses the same node and a local reference path\n- **width / height**: this published proof is fixed to **608 × 480**\n- **num_frames**: **124** frames, the shortest verified 5-second H3 packing sequence\n- **steps**: **50 sigma points / 49 denoiser forwards**, matching the quality recipe\n\nThe text encoder enters GPU only for conditioning and returns to CPU afterward. T2VA uses manual stage offload; Ref2VA uses H3's component manager to place the source FP32 VAE for reference encoding. Visual and audio decode always use the untouched source FP32 VAEs."],
+      "widgets_values": ["MINIMAX H3 — ORBITQUANT W4A4\n\nThis workflow follows ComfyUI's bundled MiniMax H3 Text to Video preset: model and usage notes on the left, compact generation in the center, and core Save Video on the right.\n\nOfficial preset source:\ngithub.com/Comfy-Org/workflow_templates\ntemplates/video_minimax_h3_t2v.json\n\nKEY INPUTS\n\nprompt\nDescribe the shot, camera motion, dialogue, sound effects, and music in one block.\n\ntask\nt2va for text-to-video. Use ref2va plus a local reference_path for reference-to-video.\n\nwidth / height\nVerified at 608 × 480.\n\nnum_frames\n124 frames: the shortest verified five-second H3 packing sequence.\n\nsteps\n50 sigma points / 49 denoiser forwards.\n\nOFFLOAD AND PRECISION\n\nThe text encoder enters GPU for conditioning and returns to CPU afterward. T2VA uses manual stage offload. Ref2VA uses H3 ComponentsManager for source FP32 VAE reference encoding. Visual and audio decode always use untouched source FP32 VAEs."],
       "color": "#222",
       "bgcolor": "#000"
     },
@@ -110,7 +110,7 @@
     },
     {
       "id": 118,
-      "type": "MarkdownNote",
+      "type": "Note",
       "pos": [-1580, 5040],
       "size": [450, 520],
       "flags": {},
@@ -120,7 +120,7 @@
       "outputs": [],
       "title": "Note: Verified Profile",
       "properties": {},
-      "widgets_values": ["## Verified 480p profile\n\n| setting | value |\n|---|---:|\n| width | 608 |\n| height | 480 |\n| frames | 124 |\n| fps | 24 |\n| sigma points | 50 |\n| denoiser forwards | 49 |\n| visual VAE | source FP32 |\n| audio VAE | source FP32 |\n\nH3 accepts 5–15 seconds. The runner rejects shorter frame counts before allocating the denoiser, preventing expensive invalid jobs. Every scheduler checkpoint, latent bundle, metrics file, and stage log is persisted as soon as it exists."],
+      "widgets_values": ["VERIFIED 480P PROFILE\n\nwidth                 608\nheight                480\nframes                124\nfps                    24\nsigma points           50\ndenoiser forwards      49\nvisual VAE     source FP32\naudio VAE      source FP32\n\nH3 accepts 5–15 seconds. The runner rejects shorter frame counts before allocating the denoiser, preventing expensive invalid jobs.\n\nScheduler checkpoints, the latent bundle, metrics, and stage logs are persisted as soon as each artifact exists."],
       "color": "#222",
       "bgcolor": "#000"
     }
