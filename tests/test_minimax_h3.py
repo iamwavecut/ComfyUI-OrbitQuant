@@ -364,6 +364,51 @@ def test_runner_adds_ref2va_reference_and_rejects_missing_reference(tmp_path, mo
         )
 
 
+def test_runner_lets_new_release_runners_place_the_reference_vae(tmp_path, monkeypatch):
+    release_path = _make_release(tmp_path)
+    (release_path / "scripts" / "run_quantized_example.py").write_text(
+        'parser.add_argument("--reference-vae-placement")\n', encoding="utf-8"
+    )
+    release = minimax_h3.MiniMaxH3Release.from_path(release_path)
+    reference = tmp_path / "reference.png"
+    reference.write_bytes(b"png")
+    commands: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        if "run_quantized_example.py" in command[1]:
+            Path(command[command.index("--save-latents") + 1]).write_bytes(b"latents")
+            output = Path(command[command.index("--output") + 1])
+            output.with_suffix(".metrics.json").write_text('{"status":"pass"}')
+        else:
+            master = Path(command[command.index("--output") + 1])
+            preview = Path(command[command.index("--preview-output") + 1])
+            master.write_bytes(b"master")
+            preview.write_bytes(b"preview")
+            master.with_suffix(".decode.metrics.json").write_text('{"status":"pass"}')
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(minimax_h3.subprocess, "run", fake_run)
+    minimax_h3.MiniMaxH3Runner(release).run(
+        output_dir=tmp_path / "out",
+        filename="ref.mp4",
+        prompt="zoom",
+        task="ref2va",
+        inference_profile="speed",
+        reference_path=str(reference),
+        seed=7,
+        width=608,
+        height=480,
+        num_frames=124,
+        steps=50,
+    )
+
+    generation = commands[0]
+    assert generation[generation.index("--reference-vae-placement") + 1] == "auto"
+    assert generation[generation.index("--reference-vae-tile-size") + 1] == "128"
+    assert "--reference-vae-sequential-offload" not in generation
+
+
 def test_runner_surfaces_failed_stage_and_log_path(tmp_path, monkeypatch):
     release = minimax_h3.MiniMaxH3Release.from_path(_make_release(tmp_path))
 

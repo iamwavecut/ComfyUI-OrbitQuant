@@ -185,9 +185,11 @@ public recipe.
 
 T2VA and Ref2VA both use sequential CUDA text conditioning. Ref2VA also encodes
 the reference through the untouched source FP32 visual VAE before loading the
-quantized `transformer_ref`. Visual decode uses tiled source FP32 VAE offload;
-the source FP32 audio VAE enters GPU only for its audio stage. Neither VAE is
-quantized.
+quantized `transformer_ref`; with a release runner from OrbitQuant 0.11 the
+runner keeps the VAEs on the GPU for that encode when the device and the
+profile's memory cap leave room, and streams them tiled otherwise. Visual decode
+uses tiled source FP32 VAE offload; the source FP32 audio VAE enters GPU only for
+its audio stage. Neither VAE is quantized.
 
 The node saves generation logs, per-step checkpoints, and the latent bundle as
 soon as each exists. Only after denoising succeeds does it decode with the

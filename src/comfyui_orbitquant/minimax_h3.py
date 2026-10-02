@@ -87,6 +87,14 @@ class MiniMaxH3Release:
         return str(self.manifest.get("repo_id", "unknown"))
 
     @property
+    def chooses_reference_vae_placement(self) -> bool:
+        """Release runners from OrbitQuant 0.11 encode Ref2VA references with the VAEs resident
+        when the GPU leaves room and stream them otherwise; older runners need the
+        sequential-offload flag."""
+        generator = (self.path / REQUIRED_SCRIPTS["generator"]).read_text(encoding="utf-8")
+        return "--reference-vae-placement" in generator
+
+    @property
     def bits(self) -> str:
         return f"W{self.manifest['weight_bits']}A{self.manifest['activation_bits']}"
 
@@ -310,7 +318,11 @@ class MiniMaxH3Runner:
         if task == "ref2va":
             generation_command.extend(
                 [
-                    "--reference-vae-sequential-offload",
+                    *(
+                        ["--reference-vae-placement", "auto"]
+                        if self.release.chooses_reference_vae_placement
+                        else ["--reference-vae-sequential-offload"]
+                    ),
                     "--reference-vae-tile-size",
                     "128",
                 ]
