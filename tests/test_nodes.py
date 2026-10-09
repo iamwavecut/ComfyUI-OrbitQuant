@@ -54,9 +54,7 @@ def test_node_mappings_expose_loader_and_inspector():
     assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantFluxLoader"] is nodes.OrbitQuantFluxLoader
     assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantZImageLoader"] is nodes.OrbitQuantZImageLoader
     assert nodes.NODE_CLASS_MAPPINGS["OrbitQuantWanLoader"] is nodes.OrbitQuantWanLoader
-    assert nodes.NODE_DISPLAY_NAME_MAPPINGS["OrbitQuantFluxLoader"] == (
-        "OrbitQuant FLUX Loader"
-    )
+    assert nodes.NODE_DISPLAY_NAME_MAPPINGS["OrbitQuantFluxLoader"] == ("OrbitQuant FLUX Loader")
     assert "OrbitQuantReleaseLoader" in nodes.NODE_CLASS_MAPPINGS
     assert "OrbitQuantGenerateVideo" in nodes.NODE_CLASS_MAPPINGS
     assert "OrbitQuantMiniMaxH3ReleaseLoader" not in nodes.NODE_CLASS_MAPPINGS
@@ -69,7 +67,7 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
     assert 'runtime_mode="auto_fused"' in readme
     assert "git clone https://github.com/iamwavecut/ComfyUI-OrbitQuant.git" in readme
     assert "git@github.com:iamwavecut/ComfyUI-OrbitQuant.git" not in readme
-    assert 'python -m pip install "orbitquant[hf,kernels]>=0.9.2,<0.10"' in readme
+    assert 'python -m pip install "orbitquant[hf,kernels]>=0.12.0,<1"' in readme
     assert 'python -m pip install "comfyui-orbitquant[kernels]"' in readme
     assert 'python -m pip install -e "/path/to/OrbitQuant[kernels]"' in readme
     assert 'runtime_mode="dequant_bf16"' in readme
@@ -84,8 +82,8 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
 def test_pyproject_depends_on_public_orbitquant_release():
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
 
-    assert '"orbitquant>=0.9.2,<0.10"' in pyproject
-    assert '"orbitquant[hf,kernels]>=0.9.2,<0.10"' in pyproject
+    assert '"orbitquant>=0.12.0,<1"' in pyproject
+    assert '"orbitquant[hf,kernels]>=0.12.0,<1"' in pyproject
     assert "git+ssh://git@github.com/iamwavecut/OrbitQuant.git" not in pyproject
 
 
@@ -94,9 +92,7 @@ def test_node_options_match_orbitquant_supported_sets():
     from orbitquant import config as orbitquant_config
 
     supported_runtime_modes = getattr(orbitquant_config, "_SUPPORTED_RUNTIME_MODES", None)
-    supported_backends = getattr(
-        orbitquant_config, "_SUPPORTED_ACTIVATION_KERNEL_BACKENDS", None
-    )
+    supported_backends = getattr(orbitquant_config, "_SUPPORTED_ACTIVATION_KERNEL_BACKENDS", None)
     if supported_runtime_modes is not None:
         assert set(nodes.RUNTIME_MODE_OPTIONS) == set(supported_runtime_modes)
     if supported_backends is not None:
@@ -113,7 +109,8 @@ def test_missing_orbitquant_dependency_message_is_actionable(monkeypatch):
         nodes.read_manifest("/tmp/orbitquant-artifact")
 
 
-def test_root_init_exposes_comfyui_node_mappings():
+def test_root_init_exposes_comfyui_node_mappings(monkeypatch):
+    monkeypatch.setitem(sys.modules, "comfy_api.latest", None)
     root_init = Path(__file__).resolve().parents[1] / "__init__.py"
     spec = importlib.util.spec_from_file_location("comfyui_orbitquant_root", root_init)
     assert spec is not None
@@ -166,8 +163,12 @@ def _install_fake_comfy_api(monkeypatch):
         Boolean=FakeType("BOOLEAN"),
         Combo=FakeType("COMBO"),
         Video=FakeType("VIDEO"),
+        Float=FakeType("FLOAT"),
+        Image=FakeType("IMAGE"),
+        Audio=FakeType("AUDIO"),
         Custom=lambda type_name: FakeType(type_name),
     )
+
     class FakePreviewVideo:
         def __init__(self, values):
             self.values = values
@@ -200,6 +201,10 @@ def test_v3_entrypoint_exposes_modern_comfyui_nodes(monkeypatch):
         "OrbitQuantWanLoaderV3",
         "OrbitQuantReleaseLoaderV3",
         "OrbitQuantGenerateVideoV3",
+        "OrbitQuantModelLoaderV3",
+        "OrbitQuantGenerateImageV3",
+        "OrbitQuantGenerateModelVideoV3",
+        "OrbitQuantGenerateAudioV3",
     ]
     assert schema.kwargs["node_id"] == "OrbitQuantPipelineComponentLoader"
     assert schema.kwargs["display_name"] == "OrbitQuant Pipeline Component Loader"
@@ -313,12 +318,7 @@ def test_v3_nodes_delegate_to_legacy_implementations(monkeypatch):
     monkeypatch.setattr(
         nodes.OrbitQuantFluxLoader,
         "load",
-        lambda self,
-        pipeline_arg,
-        artifact_path,
-        strict,
-        runtime_mode,
-        activation_kernel_backend: (
+        lambda self, pipeline_arg, artifact_path, strict, runtime_mode, activation_kernel_backend: (
             pipeline_arg,
             {
                 "artifact_path": artifact_path,
@@ -720,3 +720,13 @@ def test_specialized_loader_rejects_mismatched_target_policy(monkeypatch, tmp_pa
 def test_loader_rejects_empty_artifact_path():
     with pytest.raises(ValueError, match="artifact_path"):
         nodes.OrbitQuantPipelineComponentLoader().load(object(), "", "transformer", True)
+
+
+def test_root_init_uses_v3_without_shadowing_it_with_v1(monkeypatch):
+    _install_fake_comfy_api(monkeypatch)
+    root_init = Path(__file__).resolve().parents[1] / "__init__.py"
+    spec = importlib.util.spec_from_file_location("comfyui_orbitquant_modern", root_init)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert callable(module.comfy_entrypoint)
+    assert not hasattr(module, "NODE_CLASS_MAPPINGS")

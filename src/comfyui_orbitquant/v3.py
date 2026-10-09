@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from comfyui_orbitquant import nodes
@@ -310,6 +311,73 @@ class OrbitQuantGenerateVideoV3(io.ComfyNode):
         return io.NodeOutput(video, report_json, ui=ui.PreviewVideo([preview]))
 
 
+def _media_schema(legacy_cls):
+    inputs = []
+    for group, definitions in legacy_cls.INPUT_TYPES().items():
+        for name, spec in definitions.items():
+            kind = spec[0]
+            options = dict(spec[1]) if len(spec) > 1 else {}
+            options.pop("forceInput", None)
+            if "dynamicPrompts" in options:
+                options["dynamic_prompts"] = options.pop("dynamicPrompts")
+            if group == "optional":
+                options["optional"] = True
+            if isinstance(kind, list):
+                inputs.append(io.Combo.Input(name, options=kind, **options))
+            else:
+                native = {"STRING": io.String, "INT": io.Int, "FLOAT": io.Float, "IMAGE": io.Image}
+                data_type = native[kind] if kind in native else io.Custom(kind)
+                inputs.append(data_type.Input(name, **options))
+    outputs = []
+    native_outputs = {"STRING": io.String, "IMAGE": io.Image, "VIDEO": io.Video, "AUDIO": io.Audio}
+    for kind, name in zip(legacy_cls.RETURN_TYPES, legacy_cls.RETURN_NAMES, strict=True):
+        data_type = native_outputs[kind] if kind in native_outputs else io.Custom(kind)
+        outputs.append(data_type.Output(name, display_name=name))
+    return io.Schema(
+        node_id=legacy_cls.__name__,
+        display_name=nodes.MEDIA_NODE_NAMES[legacy_cls.__name__],
+        category=_CATEGORY,
+        inputs=inputs,
+        outputs=outputs,
+        is_output_node=getattr(legacy_cls, "OUTPUT_NODE", False),
+        description=getattr(
+            legacy_cls, "DESCRIPTION", "Generate with a published OrbitQuant model."
+        ),
+    )
+
+
+class _MediaNodeV3(io.ComfyNode):
+    legacy_cls: type
+
+    @classmethod
+    def define_schema(cls):
+        return _media_schema(cls.legacy_cls)
+
+    @classmethod
+    async def execute(cls, **kwargs):
+        instance = cls.legacy_cls()
+        result = await asyncio.to_thread(getattr(instance, instance.FUNCTION), **kwargs)
+        if isinstance(result, dict):
+            return io.NodeOutput(*result["result"], ui=ui.PreviewVideo(result["ui"]["images"]))
+        return io.NodeOutput(*result)
+
+
+class OrbitQuantModelLoaderV3(_MediaNodeV3):
+    legacy_cls = nodes.MEDIA_NODE_CLASSES["OrbitQuantModelLoader"]
+
+
+class OrbitQuantGenerateImageV3(_MediaNodeV3):
+    legacy_cls = nodes.MEDIA_NODE_CLASSES["OrbitQuantGenerateImage"]
+
+
+class OrbitQuantGenerateModelVideoV3(_MediaNodeV3):
+    legacy_cls = nodes.MEDIA_NODE_CLASSES["OrbitQuantGenerateModelVideo"]
+
+
+class OrbitQuantGenerateAudioV3(_MediaNodeV3):
+    legacy_cls = nodes.MEDIA_NODE_CLASSES["OrbitQuantGenerateAudio"]
+
+
 class OrbitQuantExtension(ComfyExtension):
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
         return [
@@ -320,6 +388,10 @@ class OrbitQuantExtension(ComfyExtension):
             OrbitQuantWanLoaderV3,
             OrbitQuantReleaseLoaderV3,
             OrbitQuantGenerateVideoV3,
+            OrbitQuantModelLoaderV3,
+            OrbitQuantGenerateImageV3,
+            OrbitQuantGenerateModelVideoV3,
+            OrbitQuantGenerateAudioV3,
         ]
 
 

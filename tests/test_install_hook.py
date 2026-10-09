@@ -11,8 +11,8 @@ def test_requirements_matches_pyproject_pin():
     requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8").split()
     pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
-    assert requirements == ["orbitquant>=0.9.2,<0.10"]
-    assert '"orbitquant>=0.9.2,<0.10"' in pyproject
+    assert requirements == ["orbitquant>=0.12.0,<1"]
+    assert '"orbitquant>=0.12.0,<1"' in pyproject
 
 
 def _run_install_hook(tmp_path, *, fake_orbitquant: bool, kernels_exit: int = 0):

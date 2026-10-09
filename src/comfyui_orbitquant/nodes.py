@@ -9,6 +9,8 @@ from comfyui_orbitquant.minimax_h3 import (
     OrbitQuantReleaseLoader,
 )
 
+from .media_nodes import MEDIA_NODE_CLASSES, MEDIA_NODE_NAMES
+
 RUNTIME_MODE_OPTIONS = (
     "auto_fused",
     "dequant_bf16",
@@ -339,3 +341,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "OrbitQuantReleaseLoader": "OrbitQuant Release Loader",
     "OrbitQuantGenerateVideo": "OrbitQuant Generate Video",
 }
+
+NODE_CLASS_MAPPINGS.update(MEDIA_NODE_CLASSES)
+NODE_DISPLAY_NAME_MAPPINGS.update(MEDIA_NODE_NAMES)
