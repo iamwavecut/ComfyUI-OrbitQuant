@@ -115,6 +115,8 @@ YuE2 used its separate Torch 2.10.0 CUDA 12.8 worker. MiniMax used the pinned Di
 
 Image checks used 512 × 512 outputs. Kandinsky produced 576 × 320 video with 121 frames and stereo audio.
 MiniMax produced 608 × 480 video with 124 frames and stereo audio. YuE2 produced 48 kHz stereo audio.
+Wan completed 832 × 480 video with 81 frames and 50 steps. Reference-image generation passed for both FLUX.2 klein sizes, MiniMax, Turbo Image, and Boogu.
+A compatible private variant passed through `repo_id`. Cancellation terminated the worker and restored the host GPU allocation to its idle level.
 These are integration checks, not a new model-quality benchmark. Windows and physical 8 GB GPUs were not tested for this node release.
 
 ## Nodes
