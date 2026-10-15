@@ -143,22 +143,20 @@ These are integration checks, not a new model-quality benchmark. Windows and phy
 
 ### FLUX.3 Klein and Drama 3
 
-Both families were checked through ComfyUI's queue (commit `29e28e2`) with the standard save nodes on one RTX PRO 6000 Server Edition, Torch 2.12.1 CUDA 13.0.
-FLUX.3 Klein ran a 1024 × 1024 text-to-image graph, a 768 × 512 graph, and an edit with one reference that kept the reference size.
-Drama 3 W4A4 ran an English line, a Russian line with a voice reference, and a two-speaker dialogue; Drama 3 W2A2 loaded from the Hub.
-Each request starts a new worker, so the times include model loading. Device memory is the total from NVML at 0.2 s intervals and includes the 1.2 GiB CUDA context of the ComfyUI server.
-Worker RAM is the peak resident set of the generation process.
+Both families ran through ComfyUI's queue with the standard save nodes on one RTX 5090 (Torch 2.12.1, CUDA 13.0, `orbitquant` 0.13.0).
+Device memory is the total from NVML at 0.2 s intervals and includes the 1.0 GiB that the idle ComfyUI server holds. Worker RAM is the peak resident set of the generation process. Times are per request and include loading when the request starts a worker or changes the kept model.
 
-| Request | Profile | Device memory peak | Worker RAM peak | Time |
+| Request | Profile, worker | Device memory peak | Worker RAM peak | Time |
 | --- | --- | ---: | ---: | ---: |
-| FLUX.3 Klein, text to image | default | 17.1 GiB | 5.6 GiB | 10.1 s |
-| FLUX.3 Klein, text to image | model-offload | 9.3 GiB | 11.3 GiB | 14.2 s |
-| FLUX.3 Klein, edit with one reference | default | 17.0 GiB | 5.6 GiB | 12.1 s |
-| FLUX.3 Klein, edit with one reference | model-offload | 9.3 GiB | 11.9 GiB | 16.3 s |
-| Drama 3 W4A4, one sentence | default | 28.5 GiB | 7.9 GiB | 14.1 s |
-| Drama 3 W4A4, one sentence | cpu-offload | 9.8 GiB | 27.7 GiB | 221.4 s |
-| Drama 3 W2A2, one sentence | default | 21.5 GiB | 7.9 GiB | 20.1 s |
-| Drama 3 W2A2, one sentence | cpu-offload | 9.2 GiB | 20.2 GiB | 145.8 s |
+| FLUX.3 Klein, text to image, first request | default, kept | 12.6 GiB | 5.6 GiB | 26.3 s |
+| FLUX.3 Klein, text to image, next request | default, kept | 12.6 GiB | 5.6 GiB | 3.0 s |
+| FLUX.3 Klein, edit with one reference | default, kept | 12.7 GiB | 5.6 GiB | 6.0 s |
+| FLUX.3 Klein, text to image, profile change | int8-attention, kept | 12.7 GiB | 6.8 GiB | 7.4 s |
+| FLUX.3 Klein, text to image | int8-attention, kept | 12.6 GiB | 6.8 GiB | 3.0 s |
+| FLUX.3 Klein, text to image | default, new worker | 12.6 GiB | 6.8 GiB | 21.6 s |
+| FLUX.3 Klein, text to image | model-offload, new worker | 6.2 GiB | 9.6 GiB | 27.2 s |
+| FLUX.3 Klein, edit with one reference | model-offload, new worker | 6.5 GiB | 9.9 GiB | 30.5 s |
+| Drama 3 W4A4, one sentence | default, new worker | 28.5 GiB | 7.9 GiB | 31.2 s |
 
 These are single requests on one GPU model. A GPU with less memory than the table was not tested.
 
