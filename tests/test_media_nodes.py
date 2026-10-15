@@ -592,10 +592,11 @@ def test_serving_cache_loads_once_per_key_and_releases_on_change(monkeypatch):
     monkeypatch.setattr(worker, "_SERVING", True)
     monkeypatch.setattr(worker, "_LOADED", {})
     loads = []
+    monkeypatch.setattr(worker, "release_cached", lambda: loads.append("release"))
     assert worker.cached("a", lambda: loads.append("a") or "A") == "A"
     assert worker.cached("a", lambda: loads.append("a") or "A") == "A"
     assert worker.cached("b", lambda: loads.append("b") or "B") == "B"
-    assert loads == ["a", "b"]
+    assert loads == ["release", "a", "release", "b"]
 
 
 def test_one_shot_worker_does_not_cache(monkeypatch):
