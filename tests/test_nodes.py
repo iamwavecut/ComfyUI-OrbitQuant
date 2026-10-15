@@ -67,7 +67,7 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
     assert 'runtime_mode="auto_fused"' in readme
     assert "git clone https://github.com/iamwavecut/ComfyUI-OrbitQuant.git" in readme
     assert "git@github.com:iamwavecut/ComfyUI-OrbitQuant.git" not in readme
-    assert 'python -m pip install "orbitquant[hf,kernels]>=0.12.0,<1"' in readme
+    assert 'python -m pip install "orbitquant[hf,kernels]>=0.13.0,<1"' in readme
     assert 'python -m pip install "comfyui-orbitquant[kernels]"' in readme
     assert 'python -m pip install -e "/path/to/OrbitQuant[kernels]"' in readme
     assert 'runtime_mode="dequant_bf16"' in readme
@@ -82,8 +82,8 @@ def test_readme_documents_kernel_extra_for_auto_fused_runtime():
 def test_pyproject_depends_on_public_orbitquant_release():
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
 
-    assert '"orbitquant>=0.12.0,<1"' in pyproject
-    assert '"orbitquant[hf,kernels]>=0.12.0,<1"' in pyproject
+    assert '"orbitquant>=0.13.0,<1"' in pyproject
+    assert '"orbitquant[hf,kernels]>=0.13.0,<1"' in pyproject
     assert "git+ssh://git@github.com/iamwavecut/OrbitQuant.git" not in pyproject
 
 

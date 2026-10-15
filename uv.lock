@@ -153,7 +153,7 @@ wheels = [
 
 [[package]]
 name = "comfyui-orbitquant"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "orbitquant" },
@@ -170,8 +170,8 @@ kernels = [
 
 [package.metadata]
 requires-dist = [
-    { name = "orbitquant", specifier = ">=0.12.0,<1" },
-    { name = "orbitquant", extras = ["hf", "kernels"], marker = "extra == 'kernels'", specifier = ">=0.12.0,<1" },
+    { name = "orbitquant", specifier = ">=0.13.0,<1" },
+    { name = "orbitquant", extras = ["hf", "kernels"], marker = "extra == 'kernels'", specifier = ">=0.13.0,<1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12" },
 ]
@@ -818,7 +818,7 @@ wheels = [
 
 [[package]]
 name = "orbitquant"
-version = "0.12.0"
+version = "0.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -829,9 +829,9 @@ dependencies = [
     { name = "torch" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/36/47/c39b1333a900704e728cf08b8546ac358b34f0cc90b8485dff11db0bf815/orbitquant-0.12.0.tar.gz", hash = "sha256:d64128eca469b84eb094538c62baa14b75059087db98146ae75b351cd139e473", size = 11425423, upload-time = "2026-10-08T23:24:18.081Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/95/6002c39d9c9584f373f3763bef7b5343781d0d5f811e2ae3ba9b2220baac/orbitquant-0.13.0.tar.gz", hash = "sha256:7dc661eff777be9a55d5bbf61b74e416ee3dba1b6230b0791cf9b99a2a7c1f72", size = 11428818, upload-time = "2026-10-15T19:28:58.968Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/34/27/cf64bc9fd3b375b01acacac6398a4c4c2461c2eb945d859f9db3b292f72c/orbitquant-0.12.0-py3-none-any.whl", hash = "sha256:f92798e6c16e1ae9175b7558199dfa2fa4627101fe0eb3512ad50417b244cf70", size = 326668, upload-time = "2026-10-08T23:24:16.244Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/8e/e32693ce193d3bc3265e1d37b04995ebd5648092727433f504123e8f31fa/orbitquant-0.13.0-py3-none-any.whl", hash = "sha256:84ec9f7664ed6ee64776815f03d25ff8fcab99e7f0a508e1dfb9b99970b2dd70", size = 329594, upload-time = "2026-10-15T19:28:56.909Z" },
 ]
 
 [package.optional-dependencies]

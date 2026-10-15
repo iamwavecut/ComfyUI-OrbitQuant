@@ -325,7 +325,14 @@ def _media_schema(legacy_cls):
             if isinstance(kind, list):
                 inputs.append(io.Combo.Input(name, options=kind, **options))
             else:
-                native = {"STRING": io.String, "INT": io.Int, "FLOAT": io.Float, "IMAGE": io.Image}
+                native = {
+                    "STRING": io.String,
+                    "INT": io.Int,
+                    "FLOAT": io.Float,
+                    "IMAGE": io.Image,
+                    "AUDIO": io.Audio,
+                    "BOOLEAN": io.Boolean,
+                }
                 data_type = native[kind] if kind in native else io.Custom(kind)
                 inputs.append(data_type.Input(name, **options))
     outputs = []

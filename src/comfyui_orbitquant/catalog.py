@@ -86,6 +86,13 @@ def _catalog() -> dict[str, Recipe]:
         ("YuE2-3B", "yue2", ("W4A4",), {"media_type": "audio", "steps": 8}),
         ("Turbo-Image-2.1", "qwen_image21", ("W4A4",), {"steps": 6, "reference_images": True}),
         ("Boogu-Image-0.1-Turbo", "boogu", ("W4A8",), {"reference_images": True}),
+        (
+            "FLUX-3-Image-Klein",
+            "flux3",
+            ("W4A8",),
+            {"steps": 16, "guidance": 0.0, "reference_images": True},
+        ),
+        ("Drama-3", "drama3", ("W4A4", "W2A2"), {"media_type": "audio", "steps": 0, "frames": 500}),
     ):
         recipes.extend(
             Recipe(f"WaveCut/{family}-OrbitQuant-{bit}", adapter, **options) for bit in bits

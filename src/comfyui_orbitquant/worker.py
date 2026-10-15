@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import contextlib
 import errno
+import gc
 import importlib
+import importlib.util
 import inspect
 import json
 import os
@@ -14,6 +16,7 @@ import shutil
 import sys
 import threading
 import time
+import traceback
 from pathlib import Path
 
 # File invocation also works with a separate model environment and an installed wheel.
@@ -28,6 +31,21 @@ def check_environment(adapter: str):
     """Reject incompatible environments before downloading model weights."""
     import torch
 
+    if adapter == "flux3":
+        if importlib.util.find_spec("flux3") is None:
+            raise RuntimeError(
+                "FLUX.3 Klein runs on Black Forest Labs' native flux3 package. Install the "
+                "revision pinned in the model card with --no-deps into the selected model "
+                "environment (python_executable in OrbitQuant Model Loader)."
+            )
+        return
+    if adapter == "drama3":
+        if importlib.util.find_spec("fish_speech") is None:
+            raise RuntimeError(
+                "Drama 3 needs its separate runtime. Run install_runtime.py from the model "
+                "card, then select that environment's python in OrbitQuant Model Loader."
+            )
+        return
     if adapter == "yue2":
         if (
             sys.version_info[:2] != (3, 12)
@@ -72,6 +90,34 @@ def check_environment(adapter: str):
         raise RuntimeError("Install the Boogu package in the selected model environment")
 
 
+# A serving worker (``--serve``) keeps the last loaded model between requests.
+RESULT_PREFIX = "ORBITQUANT-RESULT "
+_SERVING = False
+_LOADED: dict = {}
+
+
+def cached(key, load):
+    """The model for ``key``: a serving worker loads it once and releases the previous one."""
+    if not _SERVING:
+        return load()
+    if _LOADED.get("key") == key:
+        return _LOADED["value"]
+    release_cached()
+    value = load()
+    _LOADED.update(key=key, value=value)
+    return value
+
+
+def release_cached():
+    if not _LOADED:
+        return
+    _LOADED.clear()
+    gc.collect()
+    import torch
+
+    torch.cuda.empty_cache()
+
+
 def resolve_files(handle: ModelHandle) -> Path:
     if handle.revision is None:
         path = Path(handle.location)
@@ -103,7 +149,7 @@ def resolve_files(handle: ModelHandle) -> Path:
                 ignore_patterns=ignore,
             )
         )
-        if handle.recipe.adapter in {"yue2", "minimax_h3"}:
+        if handle.recipe.adapter in {"yue2", "minimax_h3", "drama3"}:
             # These runtimes resolve sibling modules and kernels relative to __file__.
             # Hub blob symlinks lose that structure. Hard links preserve it without
             # duplicating checkpoint data on the same filesystem.
@@ -403,6 +449,106 @@ def _run_yue2(path: Path, options: dict, destination: Path):
     return {"audio": str(destination / "audio.wav")}
 
 
+def _count_calls(function, on_call):
+    def counted(*args, **kwargs):
+        on_call()
+        return function(*args, **kwargs)
+
+    return counted
+
+
+def _run_flux3(path: Path, options: dict, destination: Path):
+    from PIL import Image
+
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+    from flux3_orbitquant import Klein
+
+    profile = options["profile"]
+    model = cached(
+        ("flux3", str(path), profile),
+        lambda: Klein(
+            path,
+            offload=profile == "model-offload",
+            attention="int8" if profile == "int8-attention" else "cudnn",
+        ),
+    )
+    dit = model.pipeline.dits["distilled"]
+    done = {"steps": 0}
+
+    def step():
+        done["steps"] += 1
+        temporary = destination / "progress.tmp"
+        temporary.write_text(json.dumps({"step": done["steps"], "total": options["steps"]}))
+        temporary.replace(destination / "progress.json")
+
+    # A kept model is wrapped once; each request installs its own progress callback.
+    if not hasattr(dit, "oq_progress"):
+        dit.oq_progress = {"step": None}
+        dit.forward = _count_calls(dit.forward, lambda: dit.oq_progress["step"]())
+    dit.oq_progress["step"] = step
+    images = [Image.open(p).convert("RGB") for p in options["references"]]
+    import torch
+
+    torch.cuda.synchronize()
+    start = time.perf_counter()
+    image = model.generate(
+        options["prompt"],
+        images,
+        options["width"] or None,
+        options["height"] or None,
+        options["steps"],
+        options["seed"],
+    )
+    torch.cuda.synchronize()
+    image_path = destination / "image.png"
+    image.save(image_path)
+    return {"image": str(image_path), "pipeline_seconds": time.perf_counter() - start}
+
+
+def drama3_arguments(path: Path, options: dict, destination: Path) -> list[str]:
+    """Command line of the release's run_tts.py for one request."""
+    arguments = [
+        str(path / "run_tts.py"),
+        "--model",
+        str(path),
+        "--text",
+        options["prompt"],
+        "--output",
+        str(destination / "audio.wav"),
+        "--seed",
+        str(options["seed"]),
+        "--max-new-tokens",
+        str(options["frames"]),
+    ]
+    for speaker in options["speakers"]:
+        arguments += ["--reference-audio", speaker["path"], "--reference-text", speaker["text"]]
+    profile = options["profile"]
+    # The CUDA-graph path can run to the frame limit on multi-speaker dialogue.
+    if profile == "eager" or (profile == "default" and "<|speaker:" in options["prompt"]):
+        arguments.append("--eager")
+    elif profile == "cpu-offload":
+        arguments.append("--cpu-offload")
+    return arguments
+
+
+def _run_drama3(path: Path, options: dict, destination: Path):
+    check_environment("drama3")
+    old_argv = sys.argv
+    start = time.perf_counter()
+    try:
+        sys.argv = drama3_arguments(path, options, destination)
+        sys.path.insert(0, str(path))
+        runpy.run_path(str(path / "run_tts.py"), run_name="__main__")
+    finally:
+        sys.argv = old_argv
+    temporary = destination / "progress.tmp"
+    temporary.write_text(json.dumps({"step": 1, "total": 1}))
+    temporary.replace(destination / "progress.json")
+    seconds = time.perf_counter() - start
+    return {"audio": str(destination / "audio.wav"), "pipeline_seconds": seconds}
+
+
 def run(request: dict) -> dict:
     import torch
 
@@ -426,6 +572,10 @@ def run(request: dict) -> dict:
     path = resolve_files(handle)
     if adapter == "yue2":
         return _run_yue2(path, options, destination)
+    if adapter == "flux3":
+        return _run_flux3(path, options, destination)
+    if adapter == "drama3":
+        return _run_drama3(path, options, destination)
     if adapter == "minimax_h3":
         from comfyui_orbitquant.minimax_h3 import MiniMaxH3Release, MiniMaxH3Runner
 
@@ -444,7 +594,10 @@ def run(request: dict) -> dict:
             steps=options["steps"],
         )
         return {"video": str(result.output_path)}
-    pipe = load_pipeline(path, adapter, options["profile"])
+    pipe = cached(
+        (adapter, str(path), options["profile"]),
+        lambda: load_pipeline(path, adapter, options["profile"]),
+    )
     kwargs = pipeline_arguments(handle, options)
     kwargs["generator"] = torch.Generator(device="cuda").manual_seed(options["seed"])
 
@@ -490,10 +643,43 @@ def run(request: dict) -> dict:
     return result
 
 
+def serve():
+    """Run requests read from stdin (one request.json path per line) in this process, keeping
+    the last model loaded; each request ends with one ``RESULT_PREFIX`` status line."""
+    global _SERVING
+    _SERVING = True
+    os.environ.setdefault("ORBITQUANT_STRICT_PACKED", "1")
+    for line in sys.stdin:
+        request_path = line.strip()
+        if not request_path:
+            continue
+        start = time.perf_counter()
+        status = {"request": request_path, "ok": True}
+        try:
+            request = read_json(Path(request_path))
+            result = run(request)
+            result.update(
+                model=request["model"],
+                options=request["options"],
+                process_seconds=time.perf_counter() - start,
+                kept_loaded=True,
+            )
+            Path(request["result"]).write_text(json.dumps(result, indent=2), encoding="utf-8")
+        except Exception as error:  # the model stays loaded for the next request
+            traceback.print_exc()
+            status.update(ok=False, error=f"{type(error).__name__}: {error}")
+        print(RESULT_PREFIX + json.dumps(status), flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("request", type=Path)
+    parser.add_argument("request", type=Path, nargs="?")
+    parser.add_argument("--serve", action="store_true")
     args = parser.parse_args()
+    if args.serve:
+        return serve()
+    if args.request is None:
+        parser.error("a request path or --serve is required")
     request = read_json(args.request)
     stop = threading.Event()
 
