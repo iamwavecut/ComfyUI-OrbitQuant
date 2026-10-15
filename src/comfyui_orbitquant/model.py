@@ -92,6 +92,34 @@ def validate_layout(path: Path, adapter: str):
         if not (path / "src/run.py").is_file():
             raise ValueError("YuE2 release is missing src/run.py")
         return
+    elif adapter == "flux3":
+        manifest = read_json(path / "manifest.json")
+        if manifest.get("format") != "flux3-orbitquant":
+            raise ValueError("Selected recipe requires a FLUX.3 Klein OrbitQuant release")
+        for name in ("flux3_orbitquant.py", "ae.safetensors", "dit/model.safetensors"):
+            if not (path / name).is_file():
+                raise ValueError(f"FLUX.3 Klein release is missing {name}")
+        quantized = [
+            read_json(path / "dit/quantization_config.json"),
+            read_json(path / "text_encoder/config.json").get("quantization_config", {}),
+        ]
+        if any(config.get("quant_method") != "orbitquant" for config in quantized):
+            raise ValueError("The selected component is not an OrbitQuant checkpoint")
+        return
+    elif adapter == "drama3":
+        manifest = read_json(path / "orbitquant_manifest.json")
+        if manifest.get("format") != "drama3-orbitquant":
+            raise ValueError("Selected recipe requires a Drama 3 OrbitQuant release")
+        required = (
+            "run_tts.py",
+            "drama3_orbitquant.py",
+            "codec.pth",
+            "model.safetensors.index.json",
+        )
+        for name in required:
+            if not (path / name).is_file():
+                raise ValueError(f"Drama 3 release is missing {name}")
+        return
     elif adapter == "boogu":
         config = read_json(path / "transformer/config.json")
         if config.get("_class_name") != "BooguImageTransformer2DModel":
@@ -128,6 +156,7 @@ def generation_options(
     allocator_cap_gib: float = 0,
     references: list[str] | None = None,
     lyrics: str = "",
+    speakers: list[dict] | None = None,
 ) -> dict:
     recipe = handle.recipe
     if recipe.media_type != media_type:
@@ -142,6 +171,7 @@ def generation_options(
         raise ValueError(
             "Dimensions, steps and frames cannot be negative; zero uses model defaults"
         )
+    explicit_size = bool(width or height)
     width, height, steps, frames = (
         width or recipe.width,
         height or recipe.height,
@@ -149,7 +179,10 @@ def generation_options(
         frames or recipe.frames,
     )
     multiple = 32 if recipe.adapter == "minimax_h3" else 16
-    if media_type != "audio" and (width % multiple or height % multiple):
+    # An edit without explicit dimensions keeps the first reference image's size.
+    if recipe.adapter == "flux3" and references and not explicit_size:
+        width = height = 0
+    elif media_type != "audio" and (width % multiple or height % multiple):
         raise ValueError(f"Width and height must be positive multiples of {multiple}")
     if recipe.adapter in {"kandinsky6", "wan_component"} and frames % 4 != 1:
         raise ValueError("Frame count must be 4n + 1, for example 121 or 81")
@@ -163,14 +196,18 @@ def generation_options(
         raise ValueError("The released Kandinsky distilled profiles use 10 steps")
     if references and not recipe.reference_images:
         raise ValueError(f"Reference images are not supported by the {recipe.adapter} adapter")
+    if recipe.adapter == "flux3" and len(references or []) > 10:
+        raise ValueError("FLUX.3 Klein accepts at most 10 reference images")
     if recipe.adapter == "minimax_h3" and len(references or []) > 1:
         raise ValueError("MiniMax H3 accepts one reference image")
     profiles = {
         "kandinsky6": ("fast", "low-memory", "exact"),
         "minimax_h3": ("balanced", "speed", "minimum_vram"),
         "yue2": ("exact", "fast", "lowmem", "turbo"),
+        "drama3": ("default", "eager", "cpu-offload"),
+        "flux3": ("default", "model-offload", "int8-attention"),
     }.get(recipe.adapter, ("default",))
-    profile = profiles[0] if profile == "default" else profile
+    profile = profiles[0] if profile == "default" and recipe.adapter != "drama3" else profile
     if profile not in profiles:
         raise ValueError(f"{recipe.adapter} profiles: {', '.join(profiles)}")
     if not math.isfinite(allocator_cap_gib) or allocator_cap_gib < 0:
@@ -179,6 +216,15 @@ def generation_options(
         raise ValueError("The allocator cap is available for Kandinsky profiles only")
     if recipe.adapter == "yue2" and not lyrics.strip():
         raise ValueError("YuE2 requires lyrics")
+    speakers = speakers or []
+    if speakers and recipe.adapter != "drama3":
+        raise ValueError(f"Speaker references are not supported by the {recipe.adapter} adapter")
+    if len(speakers) > 16:
+        raise ValueError("Drama 3 accepts at most 16 speaker references")
+    if any(not str(speaker.get("text", "")).strip() for speaker in speakers):
+        raise ValueError("Each speaker reference needs the text spoken in its audio")
+    if recipe.adapter == "drama3" and not 1 <= frames <= 8192:
+        raise ValueError("Drama 3 frame limit must be between 1 and 8192")
     return dict(
         prompt=prompt,
         seed=seed,
@@ -190,4 +236,5 @@ def generation_options(
         allocator_cap_gib=allocator_cap_gib,
         references=references or [],
         lyrics=lyrics,
+        speakers=speakers,
     )

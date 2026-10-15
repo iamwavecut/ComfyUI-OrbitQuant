@@ -36,7 +36,7 @@ def test_all_published_recipes_have_valid_defaults(recipe):
 
 
 def test_catalog_covers_all_public_model_families():
-    assert len(CATALOG) == 26
+    assert len(CATALOG) == 29
     assert {r.adapter for r in CATALOG.values()} == {
         "kandinsky6",
         "flux_component",
@@ -50,6 +50,8 @@ def test_catalog_covers_all_public_model_families():
         "boogu",
         "minimax_h3",
         "yue2",
+        "flux3",
+        "drama3",
     }
     assert not any("lab" in name or "packed-matmul" in name for name in CATALOG)
 
@@ -406,3 +408,200 @@ def test_krea_generation_keeps_version_counters_for_text_cache(monkeypatch, tmp_
         }
     )
     assert seen and result["image"] == str(tmp_path / "image.png")
+
+
+def test_flux3_edit_keeps_first_reference_size_unless_dimensions_are_set():
+    follow = options("flux3", references=["a.png"])
+    assert (follow["width"], follow["height"], follow["steps"]) == (0, 0, 16)
+    fixed = options("flux3", references=["a.png"], width=768, height=512)
+    assert (fixed["width"], fixed["height"]) == (768, 512)
+    text_to_image = options("flux3")
+    assert (text_to_image["width"], text_to_image["height"]) == (1024, 1024)
+    with pytest.raises(ValueError, match="at most 10"):
+        options("flux3", references=["a.png"] * 11)
+    with pytest.raises(ValueError, match="multiples"):
+        options("flux3", width=1000, height=1024)
+
+
+def test_flux3_layout_checks_the_release_manifest_and_both_components(tmp_path):
+    for name in ("flux3_orbitquant.py", "ae.safetensors", "dit/model.safetensors"):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_bytes(b"x")
+    (tmp_path / "text_encoder").mkdir()
+    quantized = {"quant_method": "orbitquant"}
+    (tmp_path / "dit/quantization_config.json").write_text(json.dumps(quantized))
+    encoder = {"quantization_config": quantized}
+    (tmp_path / "text_encoder/config.json").write_text(json.dumps(encoder))
+    with pytest.raises(FileNotFoundError):
+        model.validate_layout(tmp_path, "flux3")
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "other"}))
+    with pytest.raises(ValueError, match="FLUX.3 Klein"):
+        model.validate_layout(tmp_path, "flux3")
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "flux3-orbitquant"}))
+    model.validate_layout(tmp_path, "flux3")
+    (tmp_path / "text_encoder/config.json").write_text(json.dumps({}))
+    with pytest.raises(ValueError, match="not an OrbitQuant"):
+        model.validate_layout(tmp_path, "flux3")
+
+
+def test_drama3_defaults_and_speaker_rules():
+    result = options("drama3", speakers=[{"path": "voice.wav", "text": "Hello."}])
+    assert (result["frames"], result["steps"], result["profile"]) == (500, 0, "default")
+    with pytest.raises(ValueError, match="text spoken"):
+        options("drama3", speakers=[{"path": "voice.wav", "text": " "}])
+    with pytest.raises(ValueError, match="at most 16"):
+        options("drama3", speakers=[{"path": "v.wav", "text": "x"}] * 17)
+    with pytest.raises(ValueError, match="profiles"):
+        options("drama3", profile="turbo")
+    with pytest.raises(ValueError, match="not supported"):
+        options("yue2", speakers=[{"path": "v.wav", "text": "x"}])
+
+
+def test_drama3_layout_requires_runtime_files(tmp_path):
+    (tmp_path / "orbitquant_manifest.json").write_text(json.dumps({"format": "drama3-orbitquant"}))
+    with pytest.raises(ValueError, match="missing run_tts.py"):
+        model.validate_layout(tmp_path, "drama3")
+    for name in ("run_tts.py", "drama3_orbitquant.py", "codec.pth", "model.safetensors.index.json"):
+        (tmp_path / name).write_text("x")
+    model.validate_layout(tmp_path, "drama3")
+
+
+def test_drama3_command_line_selects_runtime_flags(tmp_path):
+    base = options("drama3", speakers=[{"path": "ref.wav", "text": "Hello."}])
+    args = worker.drama3_arguments(tmp_path, base, tmp_path / "out")
+    assert args[:2] == [str(tmp_path / "run_tts.py"), "--model"]
+    assert args[args.index("--reference-audio") + 1] == "ref.wav"
+    assert args[args.index("--reference-text") + 1] == "Hello."
+    assert args[args.index("--max-new-tokens") + 1] == "500"
+    assert "--eager" not in args and "--cpu-offload" not in args
+    dialogue = dict(base, prompt="<|speaker:0|> Hi. <|speaker:1|> Hello.")
+    assert "--eager" in worker.drama3_arguments(tmp_path, dialogue, tmp_path / "out")
+    offload = dict(base, profile="cpu-offload")
+    assert "--cpu-offload" in worker.drama3_arguments(tmp_path, offload, tmp_path / "out")
+
+
+def test_audio_node_pairs_connected_speakers_with_their_text():
+    inputs = media_nodes._inputs("audio")
+    assert [k for k in inputs["optional"] if k.startswith("speaker_audio_")] == [
+        f"speaker_audio_{i}" for i in range(1, media_nodes.SPEAKER_SLOTS + 1)
+    ]
+    slots = {"speaker_audio_1": "a", "speaker_text_1": "one", "speaker_text_2": "orphan",
+             "speaker_audio_3": "c", "speaker_text_3": "three"}
+    assert media_nodes._collect_speakers(slots) == [("a", "one"), ("c", "three")]
+
+
+def test_reference_audio_is_written_as_pcm_wav(tmp_path):
+    torch = pytest.importorskip("torch")
+    import wave
+
+    audio = {"waveform": torch.tensor([[[0.0, 0.5, -0.5, 1.5]]]), "sample_rate": 24000}
+    media_nodes._write_wav(tmp_path / "voice.wav", audio)
+    with wave.open(str(tmp_path / "voice.wav")) as handle:
+        assert (handle.getnchannels(), handle.getframerate(), handle.getnframes()) == (1, 24000, 4)
+        frames = handle.readframes(4)
+    assert list(memoryview(frames).cast("h")) == [0, 16384, -16384, 32767]
+
+
+def test_flux3_offload_profile_is_limited_to_flux3():
+    assert options("flux3", profile="model-offload")["profile"] == "model-offload"
+    assert options("flux3", profile="int8-attention")["profile"] == "int8-attention"
+    with pytest.raises(ValueError, match="profiles"):
+        options("flux3", profile="eager")
+    with pytest.raises(ValueError, match="profiles"):
+        options("krea2", profile="model-offload")
+    assert "profile" in media_nodes._inputs("image")["optional"]
+
+
+FAKE_SERVER = """
+import json, os, sys
+PREFIX = "ORBITQUANT-RESULT "
+for line in sys.stdin:
+    path = line.strip()
+    request = json.load(open(path))
+    print("log line for", os.path.basename(os.path.dirname(path)), flush=True)
+    ok = request["options"].get("fail") is None
+    if ok:
+        json.dump({"image": "x", "pid": os.getpid()}, open(request["result"], "w"))
+    status = {"request": path, "ok": ok}
+    if not ok:
+        status["error"] = "ValueError: bad request"
+    print(PREFIX + json.dumps(status), flush=True)
+"""
+
+
+def _kept_request(tmp_path, name, **options):
+    destination = tmp_path / name
+    destination.mkdir()
+    return {"destination": str(destination), "result": str(destination / "result.json"),
+            "options": options}
+
+
+def _kept(tmp_path, name, interrupt=lambda: None, **options):
+    request = _kept_request(tmp_path, name, **options)
+    return media_nodes.run_worker(request, "", interrupt, keep_loaded=True)
+
+
+@pytest.fixture
+def fake_server(monkeypatch, tmp_path):
+    script = tmp_path / "server.py"
+    script.write_text(FAKE_SERVER)
+    monkeypatch.setattr(media_nodes, "WORKER_SCRIPT", script)
+    yield
+    media_nodes.stop_serving()
+
+
+def test_kept_worker_serves_consecutive_requests_in_one_process(fake_server, tmp_path):
+    first = _kept(tmp_path, "a")
+    second = _kept(tmp_path, "b")
+    assert first["pid"] == second["pid"]
+    assert "log line for b" in (tmp_path / "b" / "generation.log").read_text()
+
+
+def test_kept_worker_failure_raises_and_keeps_the_process(fake_server, tmp_path):
+    first = _kept(tmp_path, "a")
+    with pytest.raises(RuntimeError, match="bad request"):
+        _kept(tmp_path, "b", fail=True)
+    third = _kept(tmp_path, "c")
+    assert first["pid"] == third["pid"]
+
+
+def test_interrupt_stops_the_kept_worker(fake_server, tmp_path):
+    _kept(tmp_path, "a")
+    worker = next(iter(media_nodes._SERVING.values()))
+
+    def interrupt():
+        raise InterruptedError("cancelled")
+
+    with pytest.raises(InterruptedError):
+        _kept(tmp_path, "b", interrupt)
+    assert not media_nodes._SERVING
+    assert worker.process.poll() is not None
+
+
+def test_a_run_without_keep_loaded_stops_the_kept_worker(fake_server, monkeypatch, tmp_path):
+    _kept(tmp_path, "a")
+    worker = next(iter(media_nodes._SERVING.values()))
+    monkeypatch.setattr(media_nodes, "_run_once", lambda *a: None)
+    with pytest.raises(RuntimeError, match="did not return a result"):
+        media_nodes.run_worker(_kept_request(tmp_path, "b"), "", lambda: None)
+    assert not media_nodes._SERVING
+    assert worker.process.poll() is not None
+
+
+def test_serving_cache_loads_once_per_key_and_releases_on_change(monkeypatch):
+    monkeypatch.setattr(worker, "_SERVING", True)
+    monkeypatch.setattr(worker, "_LOADED", {})
+    loads = []
+    monkeypatch.setattr(worker, "release_cached", lambda: loads.append("release"))
+    assert worker.cached("a", lambda: loads.append("a") or "A") == "A"
+    assert worker.cached("a", lambda: loads.append("a") or "A") == "A"
+    assert worker.cached("b", lambda: loads.append("b") or "B") == "B"
+    assert loads == ["release", "a", "release", "b"]
+
+
+def test_one_shot_worker_does_not_cache(monkeypatch):
+    monkeypatch.setattr(worker, "_SERVING", False)
+    loads = []
+    worker.cached("a", lambda: loads.append(1))
+    worker.cached("a", lambda: loads.append(1))
+    assert loads == [1, 1]

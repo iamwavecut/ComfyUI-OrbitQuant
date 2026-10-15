@@ -4,19 +4,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "comfyui-orbitquant"
-version = "0.6.0"
+version = "0.7.0"
 description = "ComfyUI custom nodes for OrbitQuant artifacts"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{ name = "WaveCut" }]
 dependencies = [
-  "orbitquant>=0.12.0,<1",
+  "orbitquant>=0.13.0,<1",
 ]
 
 [project.optional-dependencies]
 kernels = [
-  "orbitquant[hf,kernels]>=0.12.0,<1",
+  "orbitquant[hf,kernels]>=0.13.0,<1",
 ]
 dev = [
   "pytest>=8.4",

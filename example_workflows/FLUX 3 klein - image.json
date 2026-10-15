@@ -1,0 +1,190 @@
+{
+  "id": "6857f518-33e4-4065-a2ea-945f855b8a83",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "OrbitQuantModelLoader",
+      "title": "1 - Select model",
+      "pos": [
+        40,
+        80
+      ],
+      "size": [
+        450,
+        220
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "ORBITQUANT_MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "summary_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OrbitQuantModelLoader"
+      },
+      "widgets_values": [
+        "WaveCut/FLUX-3-Image-Klein-OrbitQuant-W4A8",
+        "",
+        "",
+        "main",
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "OrbitQuantGenerateImage",
+      "title": "2 - Generate",
+      "pos": [
+        550,
+        80
+      ],
+      "size": [
+        450,
+        470
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "ORBITQUANT_MODEL",
+          "link": 1
+        },
+        {
+          "name": "reference_images",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "report_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OrbitQuantGenerateImage"
+      },
+      "widgets_values": [
+        "Candid outdoor photograph of a man laughing mid-conversation on a city sidewalk in late afternoon. Medium shot at eye level, shallow depth of field, warm low sun from camera left, soft rim light on his hair and shoulders. He wears a navy jacket over a grey shirt, with a few blurred pedestrians and shop windows behind him. Natural skin texture, slightly windswept hair, relaxed expression, a muted autumn palette.",
+        42,
+        "fixed",
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveImage",
+      "title": "3 - Save with workflow",
+      "pos": [
+        1060,
+        80
+      ],
+      "size": [
+        450,
+        220
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 2
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "OrbitQuant/flux3"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Note",
+      "title": "Usage",
+      "pos": [
+        40,
+        370
+      ],
+      "size": [
+        450,
+        220
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "FLUX.3 Klein expects a full scene caption: framing, subject, background and light. Short prompts give generic images. Zero dimensions use 1024 x 1024, or the size of the first reference image. Connect up to 10 IMAGE references for editing. Install the pinned flux3 package into the model environment and select its python_executable in the loader. keep_loaded keeps the model in its worker for the next run; profile int8-attention is faster and changes the image slightly. See the node README."
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "ORBITQUANT_MODEL"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        0,
+        0
+      ]
+    }
+  },
+  "version": 0.4
+}

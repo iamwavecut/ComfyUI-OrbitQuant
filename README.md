@@ -12,7 +12,7 @@ Outputs connect to ComfyUI's standard `SaveImage`, `SaveVideo`, and `SaveAudio` 
 4. Choose a model in **OrbitQuant Model Loader**. Empty `model_path` and `repo_id` use the selected public release.
 5. Connect the loader to the matching generator and run the workflow.
 
-The [example workflows](example_workflows) include Kandinsky at 320p and 480p, FLUX.2 klein, MiniMax H3, and YuE2.
+The [example workflows](example_workflows) include Kandinsky at 320p and 480p, FLUX.2 klein, FLUX.3 klein, MiniMax H3, YuE2, and Drama 3.
 Zero dimensions, frames, or steps use that model's release defaults.
 
 ## Models
@@ -30,9 +30,11 @@ Zero dimensions, frames, or steps use that model's release defaults.
 | Krea 2 Turbo | W4A4 | Image | — |
 | Turbo Image 2.1 | W4A4 | Image | Yes |
 | Boogu Image 0.1 Turbo | W4A8 | Image | Yes |
+| FLUX.3 Image Klein | W4A8 | Image | Yes, up to 10 |
 | YuE2 3B | W4A4 | 48 kHz stereo audio | — |
+| Drama 3 | W4A4, W2A2 | Speech audio | Voice references |
 
-The catalog contains 26 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
+The catalog contains 29 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
 Use `hf auth login` in the worker environment for private or gated repositories.
 Alternatively, set `model_path` to a complete local release. The loader validates its layout before generation.
 
@@ -50,7 +52,7 @@ Use Python 3.12 and the following packages for the common environment:
 python3.12 -m venv /path/to/orbitquant-env
 source /path/to/orbitquant-env/bin/activate
 python -m pip install torch==2.12.1 torchvision==0.27.1 --index-url https://download.pytorch.org/whl/cu130
-python -m pip install "orbitquant[hf]==0.12.0" \
+python -m pip install "orbitquant[hf]==0.13.0" \
   "diffusers @ git+https://github.com/huggingface/diffusers.git@d961a388fd02e4db38d17350c8dd9b8abe642e05" \
   "transformers>=5.17,<6" accelerate av imageio-ffmpeg pillow librosa soundfile einops kernels bitsandbytes
 python -m orbitquant.cli.main kernels-install
@@ -67,6 +69,23 @@ Its published kernels support SM89 and SM120.
 MiniMax H3 requires Diffusers revision `abc5e9bf71fd38f53cd471bc3acaa84bc5ecbfdc`.
 Use the same Torch and OrbitQuant versions in a separate environment, with that Diffusers revision instead of the common revision.
 The model loader's `python_executable` selects it. Newer Diffusers releases removed APIs used by the published MiniMax runner.
+
+FLUX.3 Klein runs on Black Forest Labs' native `flux3` package. Add the pinned revision to the common environment
+without its dependencies; the release brings its own runtime files:
+
+```bash
+python -m pip install --no-deps \
+  "flux3 @ git+https://github.com/black-forest-labs/flux-3-image-klein.git@45e57c9fb06f9751cdced29a65c5d2171003be05"
+```
+
+Drama 3 uses the runtime that its release installs into a separate Python 3.12 / Torch 2.8.0 CUDA 12.8 environment.
+Download the release, run its `install_runtime.py` as the [Drama 3 model card](https://huggingface.co/WaveCut/Drama-3-OrbitQuant-W4A4) describes,
+then select that environment's Python in the loader:
+
+```bash
+hf download WaveCut/Drama-3-OrbitQuant-W4A4 --local-dir /models/Drama-3-OrbitQuant-W4A4
+python /models/Drama-3-OrbitQuant-W4A4/install_runtime.py --venv /models/drama3-env
+```
 
 For Boogu, add the pinned official package to the common environment:
 
@@ -85,9 +104,12 @@ The explicit dependency installation above supplies this adapter's runtime. The 
 - **Krea:** the adapter uses `no_grad` so its text cache can track tensor versions.
 - **MiniMax H3:** use `balanced`, `speed`, or `minimum_vram`. Connect one reference image for Ref2VA. Without a reference, the node selects T2VA.
 - **YuE2:** enter style in `prompt` and song text in `lyrics`. Profiles are `exact`, `fast`, `lowmem`, and `turbo`.
+- **FLUX.3 Klein:** write a full scene caption. Short prompts give generic images. The default 16 steps match the distilled model, which uses no guidance. Zero dimensions give 1024 × 1024, or the size of the first reference image when references are connected. Connect up to 10 reference images. The `profile` input `model-offload` keeps the transformer, the text encoder and the autoencoder in host memory and moves each to the GPU for its own stage. `int8-attention` uses INT8 Q·K attention: it is faster and changes the image slightly. The release runs 8-bit transformer activations over 4-bit weights and needs `orbitquant` 0.13 or later in the model environment.
+- **Drama 3:** enter the text to speak in `prompt`. Connect voice references to `speaker_audio_1` to `speaker_audio_4` and type the words spoken in each reference in the matching `speaker_text_N`. Reference N speaks for `<|speaker:N-1|>`. `frames` limits the generated audio frames; zero uses 500. The `default` profile switches to `eager` for text with speaker tags. `cpu-offload` stores the backbone in host RAM.
 
-Each request releases the worker's CUDA allocations when it finishes. ComfyUI unloads its managed models before the worker starts.
-Each request also loads the model again, so end-to-end latency includes process startup and loading.
+ComfyUI unloads its managed models before a worker starts.
+**OrbitQuant Generate Image** has `keep_loaded`, on by default. Its worker stays alive and keeps the last model loaded, so the next request with the same model and profile skips process startup and loading. A request with another model or profile replaces the kept model in the same worker. Another Python environment, a video or audio run, a run with `keep_loaded` off, an interrupt or the ComfyUI exit stops the worker and frees its GPU memory.
+With `keep_loaded` off, and for video and audio, each request starts a new worker, loads the model, and releases its CUDA allocations when it finishes.
 The first request can include downloads and kernel compilation. Published warm pipeline timings exclude those costs.
 
 Cancellation stops the worker process tree. Failed runs report the generation log path.
@@ -118,6 +140,25 @@ MiniMax produced 608 × 480 video with 124 frames and stereo audio. YuE2 produce
 Wan completed 832 × 480 video with 81 frames and 50 steps. Reference-image generation passed for both FLUX.2 klein sizes, MiniMax, Turbo Image, and Boogu.
 A compatible private variant passed through `repo_id`. Cancellation terminated the worker and restored the host GPU allocation to its idle level.
 These are integration checks, not a new model-quality benchmark. Windows and physical 8 GB GPUs were not tested for this node release.
+
+### FLUX.3 Klein and Drama 3
+
+Both families ran through ComfyUI's queue with the standard save nodes on one RTX 5090 (Torch 2.12.1, CUDA 13.0, `orbitquant` 0.13.0).
+Device memory is the total from NVML at 0.2 s intervals and includes the 1.0 GiB that the idle ComfyUI server holds. Worker RAM is the peak resident set of the generation process. Times are per request and include loading when the request starts a worker or changes the kept model.
+
+| Request | Profile, worker | Device memory peak | Worker RAM peak | Time |
+| --- | --- | ---: | ---: | ---: |
+| FLUX.3 Klein, text to image, first request | default, kept | 12.6 GiB | 5.6 GiB | 26.3 s |
+| FLUX.3 Klein, text to image, next request | default, kept | 12.6 GiB | 5.6 GiB | 3.0 s |
+| FLUX.3 Klein, edit with one reference | default, kept | 12.7 GiB | 5.6 GiB | 6.0 s |
+| FLUX.3 Klein, text to image, profile change | int8-attention, kept | 12.7 GiB | 6.8 GiB | 7.4 s |
+| FLUX.3 Klein, text to image | int8-attention, kept | 12.6 GiB | 6.8 GiB | 3.0 s |
+| FLUX.3 Klein, text to image | default, new worker | 12.6 GiB | 6.8 GiB | 21.6 s |
+| FLUX.3 Klein, text to image | model-offload, new worker | 6.2 GiB | 9.6 GiB | 27.2 s |
+| FLUX.3 Klein, edit with one reference | model-offload, new worker | 6.5 GiB | 9.9 GiB | 30.5 s |
+| Drama 3 W4A4, one sentence | default, new worker | 28.5 GiB | 7.9 GiB | 31.2 s |
+
+These are single requests on one GPU model. A GPU with less memory than the table was not tested.
 
 ## Nodes
 
@@ -154,7 +195,7 @@ For a manual clone, install the `orbitquant` package into the Python
 environment used by ComfyUI and provision the native kernels explicitly:
 
 ```bash
-python -m pip install "orbitquant>=0.12.0,<1"
+python -m pip install "orbitquant>=0.13.0,<1"
 python -m orbitquant.cli.main kernels-install
 ```
 
@@ -163,7 +204,7 @@ OrbitQuant with its kernel runtime extra. This provides the Triton fallback
 used when no native variant matches:
 
 ```bash
-python -m pip install "orbitquant[hf,kernels]>=0.12.0,<1"
+python -m pip install "orbitquant[hf,kernels]>=0.13.0,<1"
 ```
 
 If you install this node pack from PyPI, the same kernel runtime dependencies
@@ -232,7 +273,7 @@ the public model into a local directory using the same environment as ComfyUI:
 ```bash
 hf download WaveCut/MiniMax-H3-OrbitQuant-W4A4 \
   --local-dir /models/MiniMax-H3-OrbitQuant-W4A4
-python -m pip install "orbitquant[hf,kernels]>=0.12.0,<1"
+python -m pip install "orbitquant[hf,kernels]>=0.13.0,<1"
 python -m pip install \
   "diffusers @ git+https://github.com/huggingface/diffusers.git@abc5e9bf71fd38f53cd471bc3acaa84bc5ecbfdc" \
   "transformers>=5.13,<6" accelerate av soundfile
