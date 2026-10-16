@@ -1,0 +1,190 @@
+{
+  "id": "00989bc8-4b97-53cb-8a5c-7504760688e6",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "OrbitQuantModelLoader",
+      "title": "1 - Select model",
+      "pos": [
+        40,
+        80
+      ],
+      "size": [
+        450,
+        220
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "ORBITQUANT_MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "summary_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OrbitQuantModelLoader"
+      },
+      "widgets_values": [
+        "WaveCut/MOSS-Image-SFT-OrbitQuant-W4A8",
+        "",
+        "",
+        "main",
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "OrbitQuantGenerateImage",
+      "title": "2 - Generate",
+      "pos": [
+        550,
+        80
+      ],
+      "size": [
+        450,
+        470
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "ORBITQUANT_MODEL",
+          "link": 1
+        },
+        {
+          "name": "reference_images",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "report_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OrbitQuantGenerateImage"
+      },
+      "widgets_values": [
+        "A studio photograph of a ceramic teapot shaped like a sleeping fox on a linen tablecloth, a cup of green tea beside it, soft window light from the left, a small paper tag on the teapot handle reading \"MORNING\" in neat black capitals, muted earthy palette.",
+        42,
+        "fixed",
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveImage",
+      "title": "3 - Save with workflow",
+      "pos": [
+        1060,
+        80
+      ],
+      "size": [
+        450,
+        220
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 2
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "OrbitQuant/moss-image"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Note",
+      "title": "Usage",
+      "pos": [
+        40,
+        370
+      ],
+      "size": [
+        450,
+        220
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "MOSS-Image follows long prompts and renders text in quotes. Zero dimensions use 1024 x 1024 and zero steps use 50 steps with guidance 3. The model environment needs orbitquant 0.14 or later, transformers 5.20 and diffusers 0.41; select its python_executable in the loader. keep_loaded keeps the model in its worker for the next run; profile model-offload keeps the components in host memory, int8-attention is faster and changes the image slightly. See the node README."
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "ORBITQUANT_MODEL"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        0,
+        0
+      ]
+    }
+  },
+  "version": 0.4
+}

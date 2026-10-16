@@ -39,6 +39,18 @@ def check_environment(adapter: str):
                 "environment (python_executable in OrbitQuant Model Loader)."
             )
         return
+    if adapter == "moss_image":
+        import diffusers
+        import transformers
+
+        if not hasattr(diffusers, "AutoencoderKLFlux2") or not hasattr(
+            transformers, "Qwen3_5TextModel"
+        ):
+            raise RuntimeError(
+                "MOSS-Image needs diffusers>=0.38 (AutoencoderKLFlux2) and a Transformers "
+                "release with Qwen3.5 (5.12 or newer) in the selected model environment."
+            )
+        return
     if adapter == "drama3":
         if importlib.util.find_spec("fish_speech") is None:
             raise RuntimeError(
@@ -506,6 +518,61 @@ def _run_flux3(path: Path, options: dict, destination: Path):
     return {"image": str(image_path), "pipeline_seconds": time.perf_counter() - start}
 
 
+def _run_moss_image(path: Path, options: dict, destination: Path, guidance: float):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+    from moss_orbitquant import load_pipeline
+
+    profile = options["profile"]
+    pipe = cached(
+        ("moss_image", str(path), profile),
+        lambda: load_pipeline(
+            path,
+            offload=profile == "model-offload",
+            attention="int8" if profile == "int8-attention" else "cudnn",
+        ),
+    )
+    transformer = pipe.transformer
+    done = {"calls": 0}
+    # Classifier-free guidance runs the transformer twice per step.
+    forwards = 2 if guidance != 1.0 else 1
+
+    def call():
+        done["calls"] += 1
+        if done["calls"] % forwards:
+            return
+        temporary = destination / "progress.tmp"
+        temporary.write_text(
+            json.dumps({"step": done["calls"] // forwards, "total": options["steps"]})
+        )
+        temporary.replace(destination / "progress.json")
+
+    # A kept model is wrapped once; each request installs its own progress callback.
+    if not hasattr(transformer, "oq_progress"):
+        transformer.oq_progress = {"call": None}
+        transformer.forward = _count_calls(
+            transformer.forward, lambda: transformer.oq_progress["call"]()
+        )
+    transformer.oq_progress["call"] = call
+    import torch
+
+    torch.cuda.synchronize()
+    start = time.perf_counter()
+    image = pipe(
+        options["prompt"],
+        height=options["height"],
+        width=options["width"],
+        num_inference_steps=options["steps"],
+        guidance_scale=guidance,
+        uncond_skip_layers=[22],
+        generator=torch.Generator("cpu").manual_seed(options["seed"]),
+    ).images[0]
+    torch.cuda.synchronize()
+    image_path = destination / "image.png"
+    image.save(image_path)
+    return {"image": str(image_path), "pipeline_seconds": time.perf_counter() - start}
+
+
 def drama3_arguments(path: Path, options: dict, destination: Path) -> list[str]:
     """Command line of the release's run_tts.py for one request."""
     arguments = [
@@ -574,6 +641,8 @@ def run(request: dict) -> dict:
         return _run_yue2(path, options, destination)
     if adapter == "flux3":
         return _run_flux3(path, options, destination)
+    if adapter == "moss_image":
+        return _run_moss_image(path, options, destination, handle.recipe.guidance)
     if adapter == "drama3":
         return _run_drama3(path, options, destination)
     if adapter == "minimax_h3":

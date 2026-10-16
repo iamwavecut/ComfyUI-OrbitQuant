@@ -12,7 +12,7 @@ Outputs connect to ComfyUI's standard `SaveImage`, `SaveVideo`, and `SaveAudio` 
 4. Choose a model in **OrbitQuant Model Loader**. Empty `model_path` and `repo_id` use the selected public release.
 5. Connect the loader to the matching generator and run the workflow.
 
-The [example workflows](example_workflows) include Kandinsky at 320p and 480p, FLUX.2 klein, FLUX.3 klein, MiniMax H3, YuE2, and Drama 3.
+The [example workflows](example_workflows) include Kandinsky at 320p and 480p, FLUX.2 klein, FLUX.3 klein, MOSS-Image, MiniMax H3, YuE2, and Drama 3.
 Zero dimensions, frames, or steps use that model's release defaults.
 
 ## Models
@@ -31,10 +31,11 @@ Zero dimensions, frames, or steps use that model's release defaults.
 | Turbo Image 2.1 | W4A4 | Image | Yes |
 | Boogu Image 0.1 Turbo | W4A8 | Image | Yes |
 | FLUX.3 Image Klein | W4A8 | Image | Yes, up to 10 |
+| MOSS-Image SFT | W4A8 | Image | — |
 | YuE2 3B | W4A4 | 48 kHz stereo audio | — |
 | Drama 3 | W4A4, W2A2 | Speech audio | Voice references |
 
-The catalog contains 29 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
+The catalog contains 30 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
 Use `hf auth login` in the worker environment for private or gated repositories.
 Alternatively, set `model_path` to a complete local release. The loader validates its layout before generation.
 
@@ -105,6 +106,7 @@ The explicit dependency installation above supplies this adapter's runtime. The 
 - **MiniMax H3:** use `balanced`, `speed`, or `minimum_vram`. Connect one reference image for Ref2VA. Without a reference, the node selects T2VA.
 - **YuE2:** enter style in `prompt` and song text in `lyrics`. Profiles are `exact`, `fast`, `lowmem`, and `turbo`.
 - **FLUX.3 Klein:** write a full scene caption. Short prompts give generic images. The default 16 steps match the distilled model, which uses no guidance. Zero dimensions give 1024 × 1024, or the size of the first reference image when references are connected. Connect up to 10 reference images. The `profile` input `model-offload` keeps the transformer, the text encoder and the autoencoder in host memory and moves each to the GPU for its own stage. `int8-attention` uses INT8 Q·K attention: it is faster and changes the image slightly. The release runs 8-bit transformer activations over 4-bit weights and needs `orbitquant` 0.13 or later in the model environment.
+- **MOSS-Image:** write a detailed prompt; text in quotes is rendered on the image. Zero dimensions give 1024 × 1024 and zero steps give 50 steps with guidance 3, as in the original pipeline. The `profile` input `model-offload` keeps the transformer, the text encoder and the autoencoder in host memory and moves each to the GPU for its own stage. `int8-attention` uses INT8 Q·K attention: it is faster and changes the image slightly. The release runs 8-bit activations over 4-bit weights in the transformer and the text encoder and needs `orbitquant` 0.14 or later, Transformers 5.20 and Diffusers 0.41 in the model environment.
 - **Drama 3:** enter the text to speak in `prompt`. Connect voice references to `speaker_audio_1` to `speaker_audio_4` and type the words spoken in each reference in the matching `speaker_text_N`. Reference N speaks for `<|speaker:N-1|>`. `frames` limits the generated audio frames; zero uses 500. The `default` profile switches to `eager` for text with speaker tags. `cpu-offload` stores the backbone in host RAM.
 
 ComfyUI unloads its managed models before a worker starts.
@@ -159,6 +161,22 @@ Device memory is the total from NVML at 0.2 s intervals and includes the 1.0 GiB
 | Drama 3 W4A4, one sentence | default, new worker | 28.5 GiB | 7.9 GiB | 31.2 s |
 
 These are single requests on one GPU model. A GPU with less memory than the table was not tested.
+
+### MOSS-Image
+
+The MOSS-Image W4A8 release ran through ComfyUI v0.41.2's queue with the standard save node on one RTX 5090 (Torch 2.12.1, CUDA 13.0, `orbitquant` 0.14.0), 1024 × 1024, 50 steps, guidance 3.
+Device memory is the NVML total at 0.2 s intervals and includes the 1.0 GiB that the idle ComfyUI server holds. Times are per request and include loading when the request starts a worker or changes the kept model.
+
+| Request | Profile, worker | Device memory peak | Time |
+| --- | --- | ---: | ---: |
+| Text to image, first request | default, kept | 12.8 GiB | 32.4 s |
+| Text to image, next request | default, kept | 11.8 GiB | 15.1 s |
+| Text to image, profile change | int8-attention, kept | 12.8 GiB | 18.3 s |
+| Text to image, next request | int8-attention, kept | 11.6 GiB | 13.2 s |
+| Text to image | default, new worker | 12.8 GiB | 29.3 s |
+| Text to image | model-offload, new worker | 9.9 GiB | 38.4 s |
+
+The worker holds 6.4 GiB of host memory with the default profile and 10.8 GiB with `model-offload`.
 
 ## Nodes
 
