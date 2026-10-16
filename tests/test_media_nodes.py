@@ -36,7 +36,7 @@ def test_all_published_recipes_have_valid_defaults(recipe):
 
 
 def test_catalog_covers_all_public_model_families():
-    assert len(CATALOG) == 29
+    assert len(CATALOG) == 30
     assert {r.adapter for r in CATALOG.values()} == {
         "kandinsky6",
         "flux_component",
@@ -52,6 +52,7 @@ def test_catalog_covers_all_public_model_families():
         "yue2",
         "flux3",
         "drama3",
+        "moss_image",
     }
     assert not any("lab" in name or "packed-matmul" in name for name in CATALOG)
 
@@ -442,6 +443,37 @@ def test_flux3_layout_checks_the_release_manifest_and_both_components(tmp_path):
     (tmp_path / "text_encoder/config.json").write_text(json.dumps({}))
     with pytest.raises(ValueError, match="not an OrbitQuant"):
         model.validate_layout(tmp_path, "flux3")
+
+
+def test_moss_image_defaults_profiles_and_text_only_input():
+    result = options("moss_image")
+    assert (result["width"], result["height"], result["steps"]) == (1024, 1024, 50)
+    assert CATALOG["WaveCut/MOSS-Image-SFT-OrbitQuant-W4A8"].guidance == 3.0
+    assert options("moss_image", profile="model-offload")["profile"] == "model-offload"
+    assert options("moss_image", profile="int8-attention")["profile"] == "int8-attention"
+    with pytest.raises(ValueError, match="Reference"):
+        options("moss_image", references=["a.png"])
+    with pytest.raises(ValueError, match="multiples"):
+        options("moss_image", width=1000)
+
+
+def test_moss_image_layout_checks_the_release_manifest_and_both_components(tmp_path):
+    for name in ("moss_orbitquant.py", "pipeline_moss_image.py", "transformer/model.safetensors"):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_bytes(b"x")
+    (tmp_path / "text_encoder").mkdir()
+    quantized = {"quant_method": "orbitquant"}
+    (tmp_path / "transformer/quantization_config.json").write_text(json.dumps(quantized))
+    text_encoder = {"quantization_config": quantized}
+    (tmp_path / "text_encoder/config.json").write_text(json.dumps(text_encoder))
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "flux3-orbitquant"}))
+    with pytest.raises(ValueError, match="MOSS-Image"):
+        model.validate_layout(tmp_path, "moss_image")
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "moss-image-orbitquant"}))
+    model.validate_layout(tmp_path, "moss_image")
+    (tmp_path / "pipeline_moss_image.py").unlink()
+    with pytest.raises(ValueError, match="missing pipeline_moss_image.py"):
+        model.validate_layout(tmp_path, "moss_image")
 
 
 def test_drama3_defaults_and_speaker_rules():

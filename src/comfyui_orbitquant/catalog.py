@@ -93,6 +93,7 @@ def _catalog() -> dict[str, Recipe]:
             {"steps": 16, "guidance": 0.0, "reference_images": True},
         ),
         ("Drama-3", "drama3", ("W4A4", "W2A2"), {"media_type": "audio", "steps": 0, "frames": 500}),
+        ("MOSS-Image-SFT", "moss_image", ("W4A8",), {"steps": 50, "guidance": 3.0}),
     ):
         recipes.extend(
             Recipe(f"WaveCut/{family}-OrbitQuant-{bit}", adapter, **options) for bit in bits

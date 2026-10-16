@@ -106,6 +106,25 @@ def validate_layout(path: Path, adapter: str):
         if any(config.get("quant_method") != "orbitquant" for config in quantized):
             raise ValueError("The selected component is not an OrbitQuant checkpoint")
         return
+    elif adapter == "moss_image":
+        manifest = read_json(path / "manifest.json")
+        if manifest.get("format") != "moss-image-orbitquant":
+            raise ValueError("Selected recipe requires a MOSS-Image OrbitQuant release")
+        required = (
+            "moss_orbitquant.py",
+            "pipeline_moss_image.py",
+            "transformer/model.safetensors",
+        )
+        for name in required:
+            if not (path / name).is_file():
+                raise ValueError(f"MOSS-Image release is missing {name}")
+        quantized = [
+            read_json(path / "transformer/quantization_config.json"),
+            read_json(path / "text_encoder/config.json").get("quantization_config", {}),
+        ]
+        if any(config.get("quant_method") != "orbitquant" for config in quantized):
+            raise ValueError("The selected component is not an OrbitQuant checkpoint")
+        return
     elif adapter == "drama3":
         manifest = read_json(path / "orbitquant_manifest.json")
         if manifest.get("format") != "drama3-orbitquant":
@@ -206,6 +225,7 @@ def generation_options(
         "yue2": ("exact", "fast", "lowmem", "turbo"),
         "drama3": ("default", "eager", "cpu-offload"),
         "flux3": ("default", "model-offload", "int8-attention"),
+        "moss_image": ("default", "model-offload", "int8-attention"),
     }.get(recipe.adapter, ("default",))
     profile = profiles[0] if profile == "default" and recipe.adapter != "drama3" else profile
     if profile not in profiles:

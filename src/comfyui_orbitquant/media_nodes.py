@@ -434,8 +434,8 @@ def _inputs(media_type):
             "profile": (
                 ["default", "model-offload", "int8-attention"],
                 {
-                    "tooltip": "FLUX.3 Klein: model-offload keeps its components in host memory; "
-                    "int8-attention is faster and changes the image slightly."
+                    "tooltip": "FLUX.3 Klein and MOSS-Image: model-offload keeps their components "
+                    "in host memory; int8-attention is faster and changes the image slightly."
                 },
             ),
             "keep_loaded": (
