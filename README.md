@@ -76,8 +76,12 @@ without its dependencies; the release brings its own runtime files:
 
 ```bash
 python -m pip install --no-deps \
-  "flux3 @ git+https://github.com/black-forest-labs/flux-3-image-klein.git@45e57c9fb06f9751cdced29a65c5d2171003be05"
+  "flux3 @ git+https://github.com/black-forest-labs/flux-3-image-klein.git@bfc8889a4497f846416f253a3972a1941ac698b9"
 ```
+
+The node sends the prompt to FLUX.3 Klein as typed. The model is trained on the captions of Black Forest Labs'
+[prompt upsampler](https://huggingface.co/black-forest-labs/flux-3-image-klein-pup), so write such a caption or make one
+with `python -m flux3.pup` as the [model card](https://huggingface.co/WaveCut/FLUX-3-Image-Klein-OrbitQuant-W4A8) describes.
 
 Drama 3 uses the runtime that its release installs into a separate Python 3.12 / Torch 2.8.0 CUDA 12.8 environment.
 Download the release, run its `install_runtime.py` as the [Drama 3 model card](https://huggingface.co/WaveCut/Drama-3-OrbitQuant-W4A4) describes,
