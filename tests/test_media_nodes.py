@@ -36,7 +36,7 @@ def test_all_published_recipes_have_valid_defaults(recipe):
 
 
 def test_catalog_covers_all_public_model_families():
-    assert len(CATALOG) == 30
+    assert len(CATALOG) == 32
     assert {r.adapter for r in CATALOG.values()} == {
         "kandinsky6",
         "flux_component",
@@ -53,6 +53,7 @@ def test_catalog_covers_all_public_model_families():
         "flux3",
         "drama3",
         "moss_image",
+        "fibo2",
     }
     assert not any("lab" in name or "packed-matmul" in name for name in CATALOG)
 
@@ -474,6 +475,51 @@ def test_moss_image_layout_checks_the_release_manifest_and_both_components(tmp_p
     (tmp_path / "pipeline_moss_image.py").unlink()
     with pytest.raises(ValueError, match="missing pipeline_moss_image.py"):
         model.validate_layout(tmp_path, "moss_image")
+
+
+def test_image_prompts_skip_the_dynamic_prompt_pass_that_breaks_json_captions():
+    image = media_nodes.OrbitQuantGenerateImage.INPUT_TYPES()["required"]["prompt"][1]
+    video = media_nodes._inputs("video")["required"]["prompt"][1]
+    assert image["dynamicPrompts"] is False
+    assert video["dynamicPrompts"] is True
+
+
+def test_fibo2_defaults_profiles_and_references():
+    dev = CATALOG["WaveCut/Fibo-2.0-dev-OrbitQuant-W4A8"]
+    turbo = CATALOG["WaveCut/Fibo-2.0-edit-turbo-OrbitQuant-W4A8"]
+    assert (dev.steps, dev.guidance, turbo.steps, turbo.guidance) == (50, 5.0, 4, 1.0)
+    result = options("fibo2")
+    assert (result["width"], result["height"]) == (1024, 1024)
+    assert options("fibo2", profile="model-offload")["profile"] == "model-offload"
+    assert options("fibo2", profile="int8-attention")["profile"] == "int8-attention"
+    # An edit without explicit dimensions lets the pipeline size the output from the image.
+    edit = options("fibo2", references=["a.png", "b.png"])
+    assert (edit["width"], edit["height"], edit["references"]) == (0, 0, ["a.png", "b.png"])
+    assert options("fibo2", references=["a.png"], width=1024, height=768)["height"] == 768
+    with pytest.raises(ValueError, match="at most 4"):
+        options("fibo2", references=["a.png"] * 5)
+
+
+def test_fibo2_layout_checks_the_release_manifest_and_both_components(tmp_path):
+    for name in ("fibo2_orbitquant.py", "transformer/model.safetensors", "fonts/DejaVuSans.ttf"):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_bytes(b"x")
+    (tmp_path / "text_encoder").mkdir()
+    quantized = {"quant_method": "orbitquant"}
+    (tmp_path / "transformer/quantization_config.json").write_text(json.dumps(quantized))
+    (tmp_path / "text_encoder/config.json").write_text(json.dumps({"quantization_config": {}}))
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "moss-image-orbitquant"}))
+    with pytest.raises(ValueError, match="Fibo 2.0"):
+        model.validate_layout(tmp_path, "fibo2")
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "fibo2-orbitquant"}))
+    with pytest.raises(ValueError, match="not an OrbitQuant"):
+        model.validate_layout(tmp_path, "fibo2")
+    text_config = {"quantization_config": quantized}
+    (tmp_path / "text_encoder/config.json").write_text(json.dumps(text_config))
+    model.validate_layout(tmp_path, "fibo2")
+    (tmp_path / "fonts/DejaVuSans.ttf").unlink()
+    with pytest.raises(ValueError, match="missing fonts/DejaVuSans.ttf"):
+        model.validate_layout(tmp_path, "fibo2")
 
 
 def test_drama3_defaults_and_speaker_rules():

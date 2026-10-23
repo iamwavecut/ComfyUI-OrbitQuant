@@ -125,6 +125,24 @@ def validate_layout(path: Path, adapter: str):
         if any(config.get("quant_method") != "orbitquant" for config in quantized):
             raise ValueError("The selected component is not an OrbitQuant checkpoint")
         return
+    elif adapter == "fibo2":
+        manifest = read_json(path / "manifest.json")
+        if manifest.get("format") != "fibo2-orbitquant":
+            raise ValueError("Selected recipe requires a Fibo 2.0 OrbitQuant release")
+        for name in (
+            "fibo2_orbitquant.py",
+            "transformer/model.safetensors",
+            "fonts/DejaVuSans.ttf",
+        ):
+            if not (path / name).is_file():
+                raise ValueError(f"Fibo 2.0 release is missing {name}")
+        quantized = [
+            read_json(path / "transformer/quantization_config.json"),
+            read_json(path / "text_encoder/config.json").get("quantization_config", {}),
+        ]
+        if any(config.get("quant_method") != "orbitquant" for config in quantized):
+            raise ValueError("The selected component is not an OrbitQuant checkpoint")
+        return
     elif adapter == "drama3":
         manifest = read_json(path / "orbitquant_manifest.json")
         if manifest.get("format") != "drama3-orbitquant":
@@ -199,7 +217,7 @@ def generation_options(
     )
     multiple = 32 if recipe.adapter == "minimax_h3" else 16
     # An edit without explicit dimensions keeps the first reference image's size.
-    if recipe.adapter == "flux3" and references and not explicit_size:
+    if recipe.adapter in {"flux3", "fibo2"} and references and not explicit_size:
         width = height = 0
     elif media_type != "audio" and (width % multiple or height % multiple):
         raise ValueError(f"Width and height must be positive multiples of {multiple}")
@@ -217,6 +235,8 @@ def generation_options(
         raise ValueError(f"Reference images are not supported by the {recipe.adapter} adapter")
     if recipe.adapter == "flux3" and len(references or []) > 10:
         raise ValueError("FLUX.3 Klein accepts at most 10 reference images")
+    if recipe.adapter == "fibo2" and len(references or []) > 4:
+        raise ValueError("Fibo 2.0 accepts at most 4 reference images")
     if recipe.adapter == "minimax_h3" and len(references or []) > 1:
         raise ValueError("MiniMax H3 accepts one reference image")
     profiles = {
@@ -226,6 +246,7 @@ def generation_options(
         "drama3": ("default", "eager", "cpu-offload"),
         "flux3": ("default", "model-offload", "int8-attention"),
         "moss_image": ("default", "model-offload", "int8-attention"),
+        "fibo2": ("default", "model-offload", "int8-attention"),
     }.get(recipe.adapter, ("default",))
     profile = profiles[0] if profile == "default" and recipe.adapter != "drama3" else profile
     if profile not in profiles:

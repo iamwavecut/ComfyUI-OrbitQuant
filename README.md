@@ -12,7 +12,7 @@ Outputs connect to ComfyUI's standard `SaveImage`, `SaveVideo`, and `SaveAudio` 
 4. Choose a model in **OrbitQuant Model Loader**. Empty `model_path` and `repo_id` use the selected public release.
 5. Connect the loader to the matching generator and run the workflow.
 
-The [example workflows](example_workflows) include Kandinsky at 320p and 480p, FLUX.2 klein, FLUX.3 klein, MOSS-Image, MiniMax H3, YuE2, and Drama 3.
+The [example workflows](example_workflows) include Kandinsky at 320p and 480p, FLUX.2 klein, FLUX.3 klein, MOSS-Image, Fibo 2.0 Dev and Edit Turbo, MiniMax H3, YuE2, and Drama 3.
 Zero dimensions, frames, or steps use that model's release defaults.
 
 ## Models
@@ -32,10 +32,12 @@ Zero dimensions, frames, or steps use that model's release defaults.
 | Boogu Image 0.1 Turbo | W4A8 | Image | Yes |
 | FLUX.3 Image Klein | W4A8 | Image | Yes, up to 10 |
 | MOSS-Image SFT | W4A8 | Image | — |
+| Fibo 2.0 Dev | W4A8 | Image | Yes, up to 4 |
+| Fibo 2.0 Edit Turbo | W4A8 | Image | Yes, up to 4 |
 | YuE2 3B | W4A4 | 48 kHz stereo audio | — |
 | Drama 3 | W4A4, W2A2 | Speech audio | Voice references |
 
-The catalog contains 30 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
+The catalog contains 32 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
 Use `hf auth login` in the worker environment for private or gated repositories.
 Alternatively, set `model_path` to a complete local release. The loader validates its layout before generation.
 
@@ -92,6 +94,14 @@ hf download WaveCut/Drama-3-OrbitQuant-W4A4 --local-dir /models/Drama-3-OrbitQua
 python /models/Drama-3-OrbitQuant-W4A4/install_runtime.py --venv /models/drama3-env
 ```
 
+Fibo 2.0 needs a Diffusers revision that contains `BriaFibo2Pipeline`; Diffusers 0.41.0 does not. Use a separate
+environment with the same Torch, `orbitquant[hf]==0.15.0`, `transformers==5.20.1` and this revision:
+
+```bash
+python -m pip install \
+  "diffusers @ git+https://github.com/huggingface/diffusers.git@48cdbaef5ee3d718aaee392b44f2099ae511c4a5"
+```
+
 For Boogu, add the pinned official package to the common environment:
 
 ```bash
@@ -111,7 +121,10 @@ The explicit dependency installation above supplies this adapter's runtime. The 
 - **YuE2:** enter style in `prompt` and song text in `lyrics`. Profiles are `exact`, `fast`, `lowmem`, and `turbo`.
 - **FLUX.3 Klein:** write a full scene caption. Short prompts give generic images. The default 16 steps match the distilled model, which uses no guidance. Zero dimensions give 1024 × 1024, or the size of the first reference image when references are connected. Connect up to 10 reference images. The `profile` input `model-offload` keeps the transformer, the text encoder and the autoencoder in host memory and moves each to the GPU for its own stage. `int8-attention` uses INT8 Q·K attention: it is faster and changes the image slightly. The release runs 8-bit transformer activations over 4-bit weights and needs `orbitquant` 0.13 or later in the model environment.
 - **MOSS-Image:** write a detailed prompt; text in quotes is rendered on the image. Zero dimensions give 1024 × 1024 and zero steps give 50 steps with guidance 3, as in the original pipeline. The `profile` input `model-offload` keeps the transformer, the text encoder and the autoencoder in host memory and moves each to the GPU for its own stage. `int8-attention` uses INT8 Q·K attention: it is faster and changes the image slightly. The release runs 8-bit activations over 4-bit weights in the transformer and the text encoder and needs `orbitquant` 0.14 or later, Transformers 5.20 and Diffusers 0.41 in the model environment.
+- **Fibo 2.0:** enter a structured VGL JSON caption. [`bria-vgl`](https://github.com/Bria-AI/vgl) writes one from plain language; the [caption guide](https://huggingface.co/briaai/Fibo-2.0-dev/blob/main/vgl/README.md) describes the fields. Dev uses 50 steps with guidance 5 and the release's negative caption; Edit Turbo uses 4 steps without guidance. Zero dimensions give 1024 × 1024, or the aspect ratio of the first reference image at about one megapixel when references are connected. Connect up to 4 reference images and put the change into the caption's `edit_instruction`. The node has no mask input; the release's `run_fibo2.py --mask` covers masked edits. Profiles are the same as for MOSS-Image. Both models are licensed under CC BY-NC 4.0.
 - **Drama 3:** enter the text to speak in `prompt`. Connect voice references to `speaker_audio_1` to `speaker_audio_4` and type the words spoken in each reference in the matching `speaker_text_N`. Reference N speaks for `<|speaker:N-1|>`. `frames` limits the generated audio frames; zero uses 500. The `default` profile switches to `eager` for text with speaker tags. `cpu-offload` stores the backbone in host RAM.
+
+**OrbitQuant Generate Image** sends the prompt as typed. The frontend's `{a|b}` dynamic-prompt pass removes every brace and `//` comment, so it is off for this node and JSON captions (Fibo 2.0, Ideogram) arrive intact. The video and audio generators keep it.
 
 ComfyUI unloads its managed models before a worker starts.
 **OrbitQuant Generate Image** has `keep_loaded`, on by default. Its worker stays alive and keeps the last model loaded, so the next request with the same model and profile skips process startup and loading. A request with another model or profile replaces the kept model in the same worker. Another Python environment, a video or audio run, a run with `keep_loaded` off, an interrupt or the ComfyUI exit stops the worker and frees its GPU memory.
@@ -181,6 +194,25 @@ Device memory is the NVML total at 0.2 s intervals and includes the 1.0 GiB that
 | Text to image | model-offload, new worker | 9.9 GiB | 38.4 s |
 
 The worker holds 6.4 GiB of host memory with the default profile and 10.8 GiB with `model-offload`.
+
+### Fibo 2.0
+
+The Fibo 2.0 Dev and Edit Turbo W4A8 releases ran through ComfyUI v0.42.1's queue with the standard save node on one RTX 5090 (Torch 2.12.1, CUDA 13.0, `orbitquant` 0.15.0). Text to image was 1024 × 1024 with 50 steps and guidance 5; the edits changed one 1216 × 830 photo (1264 × 864 output) with 50 steps and guidance 5 (Dev) or 4 steps without guidance (Edit Turbo).
+Device memory is the NVML total at 0.2 s intervals and includes the 1.0 GiB that the idle ComfyUI server holds. Times are per request and include loading when the request starts a worker or changes the kept model.
+
+| Request | Profile, worker | Device memory peak | Worker RAM peak | Time |
+| --- | --- | ---: | ---: | ---: |
+| Dev, text to image, first request | default, kept | 12.7 GiB | 5.0 GiB | 30.3 s |
+| Dev, text to image, next request | default, kept | 12.7 GiB | 5.0 GiB | 21.2 s |
+| Dev, edit with one reference | default, kept | 12.8 GiB | 5.0 GiB | 53.5 s |
+| Dev, text to image, profile change | int8-attention, kept | 13.0 GiB | 6.5 GiB | 22.2 s |
+| Dev, text to image | model-offload, new worker | not separated | 10.0 GiB | 39.3 s |
+| Edit Turbo, edit, model change | default, kept | 13.0 GiB | 5.0 GiB | 11.1 s |
+| Edit Turbo, edit, next request | default, kept | 13.0 GiB | 5.0 GiB | 3.0 s |
+| Edit Turbo, edit | model-offload, new worker | not separated | 9.9 GiB | 20.4 s |
+
+The `model-offload` requests started while the previous worker still held its memory, so the NVML total does not separate their peak. The release cards measure `--offload` alone at 5.9 GiB (Dev) and 6.5 GiB (Edit Turbo).
+The first Dev image, the Dev edit, the first Edit Turbo edit and both `model-offload` images were pixel-identical to the output of the release's `run_fibo2.py` for the same caption, image and seed.
 
 ## Nodes
 
