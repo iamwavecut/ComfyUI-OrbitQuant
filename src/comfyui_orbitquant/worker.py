@@ -51,6 +51,18 @@ def check_environment(adapter: str):
                 "release with Qwen3.5 (5.12 or newer) in the selected model environment."
             )
         return
+    if adapter == "fibo2":
+        import diffusers
+        import transformers
+
+        if not hasattr(diffusers, "BriaFibo2Pipeline") or not hasattr(
+            transformers, "Qwen3VLForConditionalGeneration"
+        ):
+            raise RuntimeError(
+                "Fibo 2.0 needs a diffusers release with BriaFibo2Pipeline (0.42 or newer, or the "
+                "main branch) and Transformers 5.20 or newer in the selected model environment."
+            )
+        return
     if adapter == "drama3":
         if importlib.util.find_spec("fish_speech") is None:
             raise RuntimeError(
@@ -573,6 +585,70 @@ def _run_moss_image(path: Path, options: dict, destination: Path, guidance: floa
     return {"image": str(image_path), "pipeline_seconds": time.perf_counter() - start}
 
 
+def _run_fibo2(path: Path, options: dict, destination: Path, guidance: float):
+    from PIL import Image
+
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+    from fibo2_orbitquant import NEGATIVE_EDIT, NEGATIVE_T2I, fonts, load_pipeline
+
+    profile = options["profile"]
+    pipe = cached(
+        ("fibo2", str(path), profile),
+        lambda: load_pipeline(
+            path,
+            offload=profile == "model-offload",
+            attention="int8" if profile == "int8-attention" else "cudnn",
+        ),
+    )
+    transformer = pipe.transformer
+    done = {"calls": 0}
+    # Classifier-free guidance runs the transformer twice per step.
+    forwards = 2 if guidance > 1.0 else 1
+
+    def call():
+        done["calls"] += 1
+        if done["calls"] % forwards:
+            return
+        temporary = destination / "progress.tmp"
+        temporary.write_text(
+            json.dumps({"step": done["calls"] // forwards, "total": options["steps"]})
+        )
+        temporary.replace(destination / "progress.json")
+
+    # A kept model is wrapped once; each request installs its own progress callback.
+    if not hasattr(transformer, "oq_progress"):
+        transformer.oq_progress = {"call": None}
+        transformer.forward = _count_calls(
+            transformer.forward, lambda: transformer.oq_progress["call"]()
+        )
+    transformer.oq_progress["call"] = call
+    images = [Image.open(p).convert("RGB") for p in options["references"]]
+    kwargs = {}
+    if images:
+        kwargs["image"] = images if len(images) > 1 else images[0]
+    if options["width"] and options["height"]:
+        kwargs.update(width=options["width"], height=options["height"])
+    if guidance > 1.0:
+        kwargs["negative_prompt"] = NEGATIVE_EDIT if images else NEGATIVE_T2I
+    import torch
+
+    torch.cuda.synchronize()
+    start = time.perf_counter()
+    image = pipe(
+        prompt=options["prompt"],
+        num_inference_steps=options["steps"],
+        guidance_scale=guidance,
+        fonts=fonts(path),
+        generator=torch.Generator("cpu").manual_seed(options["seed"]),
+        **kwargs,
+    ).images[0]
+    torch.cuda.synchronize()
+    image_path = destination / "image.png"
+    image.save(image_path)
+    return {"image": str(image_path), "pipeline_seconds": time.perf_counter() - start}
+
+
 def drama3_arguments(path: Path, options: dict, destination: Path) -> list[str]:
     """Command line of the release's run_tts.py for one request."""
     arguments = [
@@ -643,6 +719,8 @@ def run(request: dict) -> dict:
         return _run_flux3(path, options, destination)
     if adapter == "moss_image":
         return _run_moss_image(path, options, destination, handle.recipe.guidance)
+    if adapter == "fibo2":
+        return _run_fibo2(path, options, destination, handle.recipe.guidance)
     if adapter == "drama3":
         return _run_drama3(path, options, destination)
     if adapter == "minimax_h3":

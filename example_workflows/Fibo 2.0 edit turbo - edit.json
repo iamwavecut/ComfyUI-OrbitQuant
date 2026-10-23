@@ -1,0 +1,238 @@
+{
+  "id": "be617d30-bd72-56e4-9389-83e2839d1e81",
+  "revision": 0,
+  "last_node_id": 5,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "OrbitQuantModelLoader",
+      "title": "1 - Select model",
+      "pos": [
+        40,
+        80
+      ],
+      "size": [
+        450,
+        220
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "ORBITQUANT_MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "summary_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OrbitQuantModelLoader"
+      },
+      "widgets_values": [
+        "WaveCut/Fibo-2.0-edit-turbo-OrbitQuant-W4A8",
+        "",
+        "",
+        "main",
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "OrbitQuantGenerateImage",
+      "title": "2 - Generate",
+      "pos": [
+        550,
+        80
+      ],
+      "size": [
+        450,
+        470
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "ORBITQUANT_MODEL",
+          "link": 1
+        },
+        {
+          "name": "reference_images",
+          "type": "IMAGE",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "report_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OrbitQuantGenerateImage"
+      },
+      "widgets_values": [
+        "{\"short_description\": \"The same scene as the input image, repainted as a loose watercolor illustration on textured paper.\", \"style_medium\": \"watercolor painting\", \"artistic_style\": \"loose watercolor with soft washes and visible paper texture\", \"edit_instruction\": \"Repaint the whole image as a loose watercolor illustration, keeping the composition and every subject in place.\"}",
+        42,
+        "fixed",
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveImage",
+      "title": "3 - Save with workflow",
+      "pos": [
+        1060,
+        80
+      ],
+      "size": [
+        450,
+        220
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 2
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "OrbitQuant/fibo2-edit-turbo"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Note",
+      "title": "Usage",
+      "pos": [
+        40,
+        700
+      ],
+      "size": [
+        450,
+        220
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "Fibo 2.0 Edit Turbo edits the connected images in 4 steps without guidance. Write the caption of the result with its edit_instruction; bria-vgl's modify() (github.com/Bria-AI/vgl) makes one from images and a plain instruction. Zero dimensions keep the aspect ratio of the first image at about one megapixel. Connect up to 4 reference images, for example with Batch Images. The model environment needs orbitquant 0.15, transformers 5.20 and the pinned diffusers revision; select its python_executable in the loader. Licence: CC BY-NC 4.0. See the node README."
+      ]
+    },
+    {
+      "id": 5,
+      "type": "LoadImage",
+      "title": "Image to edit",
+      "pos": [
+        40,
+        340
+      ],
+      "size": [
+        450,
+        320
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "ORBITQUANT_MODEL"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      5,
+      0,
+      2,
+      1,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        0,
+        0
+      ]
+    }
+  },
+  "version": 0.4
+}

@@ -94,6 +94,18 @@ def _catalog() -> dict[str, Recipe]:
         ),
         ("Drama-3", "drama3", ("W4A4", "W2A2"), {"media_type": "audio", "steps": 0, "frames": 500}),
         ("MOSS-Image-SFT", "moss_image", ("W4A8",), {"steps": 50, "guidance": 3.0}),
+        (
+            "Fibo-2.0-dev",
+            "fibo2",
+            ("W4A8",),
+            {"steps": 50, "guidance": 5.0, "reference_images": True},
+        ),
+        (
+            "Fibo-2.0-edit-turbo",
+            "fibo2",
+            ("W4A8",),
+            {"steps": 4, "guidance": 1.0, "reference_images": True},
+        ),
     ):
         recipes.extend(
             Recipe(f"WaveCut/{family}-OrbitQuant-{bit}", adapter, **options) for bit in bits

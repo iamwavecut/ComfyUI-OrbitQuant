@@ -376,9 +376,14 @@ def _collect_speakers(slots):
 
 
 def _inputs(media_type):
+    # The frontend's {a|b} dynamic-prompt pass strips every brace and // comment, which breaks the
+    # JSON captions that Fibo 2.0 and Ideogram read, so image prompts reach the model as typed.
     required = {
         "model": ("ORBITQUANT_MODEL", {"forceInput": True}),
-        "prompt": ("STRING", {"default": "", "multiline": True, "dynamicPrompts": True}),
+        "prompt": (
+            "STRING",
+            {"default": "", "multiline": True, "dynamicPrompts": media_type != "image"},
+        ),
         "seed": (
             "INT",
             {"default": 42, "min": 0, "max": 2**63 - 1, "control_after_generate": True},
@@ -434,8 +439,9 @@ def _inputs(media_type):
             "profile": (
                 ["default", "model-offload", "int8-attention"],
                 {
-                    "tooltip": "FLUX.3 Klein and MOSS-Image: model-offload keeps their components "
-                    "in host memory; int8-attention is faster and changes the image slightly."
+                    "tooltip": "FLUX.3 Klein, MOSS-Image and Fibo 2.0: model-offload keeps their "
+                    "components in host memory; int8-attention is faster and changes the image "
+                    "slightly."
                 },
             ),
             "keep_loaded": (
