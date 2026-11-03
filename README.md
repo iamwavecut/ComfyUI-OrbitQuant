@@ -55,7 +55,7 @@ Use Python 3.12 and the following packages for the common environment:
 python3.12 -m venv /path/to/orbitquant-env
 source /path/to/orbitquant-env/bin/activate
 python -m pip install torch==2.12.1 torchvision==0.27.1 --index-url https://download.pytorch.org/whl/cu130
-python -m pip install "orbitquant[hf]==0.13.0" \
+python -m pip install "orbitquant[hf]==0.16.1" \
   "diffusers @ git+https://github.com/huggingface/diffusers.git@d961a388fd02e4db38d17350c8dd9b8abe642e05" \
   "transformers>=5.17,<6" accelerate av imageio-ffmpeg pillow librosa soundfile einops kernels bitsandbytes
 python -m orbitquant.cli.main kernels-install
@@ -95,7 +95,7 @@ python /models/Drama-3-OrbitQuant-W4A4/install_runtime.py --venv /models/drama3-
 ```
 
 Fibo 2.0 needs a Diffusers revision that contains `BriaFibo2Pipeline`; Diffusers 0.41.0 does not. Use a separate
-environment with the same Torch, `orbitquant[hf]==0.15.0`, `transformers==5.20.1` and this revision:
+environment with the same Torch, `orbitquant[hf]==0.16.1`, `transformers==5.20.1` and this revision:
 
 ```bash
 python -m pip install \
@@ -249,7 +249,7 @@ For a manual clone, install the `orbitquant` package into the Python
 environment used by ComfyUI and provision the native kernels explicitly:
 
 ```bash
-python -m pip install "orbitquant>=0.13.0,<1"
+python -m pip install "orbitquant>=0.16.1,<1"
 python -m orbitquant.cli.main kernels-install
 ```
 
@@ -258,7 +258,7 @@ OrbitQuant with its kernel runtime extra. This provides the Triton fallback
 used when no native variant matches:
 
 ```bash
-python -m pip install "orbitquant[hf,kernels]>=0.13.0,<1"
+python -m pip install "orbitquant[hf,kernels]>=0.16.1,<1"
 ```
 
 If you install this node pack from PyPI, the same kernel runtime dependencies
@@ -327,7 +327,7 @@ the public model into a local directory using the same environment as ComfyUI:
 ```bash
 hf download WaveCut/MiniMax-H3-OrbitQuant-W4A4 \
   --local-dir /models/MiniMax-H3-OrbitQuant-W4A4
-python -m pip install "orbitquant[hf,kernels]>=0.13.0,<1"
+python -m pip install "orbitquant[hf,kernels]>=0.16.1,<1"
 python -m pip install \
   "diffusers @ git+https://github.com/huggingface/diffusers.git@abc5e9bf71fd38f53cd471bc3acaa84bc5ecbfdc" \
   "transformers>=5.13,<6" accelerate av soundfile
