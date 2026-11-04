@@ -153,7 +153,7 @@
         "Node name for S&R": "Note"
       },
       "widgets_values": [
-        "Fibo 2.0 reads structured VGL JSON captions. The bria-vgl package (github.com/Bria-AI/vgl) writes them from plain language; the caption guide is vgl/README.md in briaai/Fibo-2.0-dev. Zero dimensions use 1024 x 1024 and zero steps use 50 steps with guidance 5 and the release's negative caption. Connect up to 4 reference images to edit. The model environment needs orbitquant 0.15, transformers 5.20 and the pinned diffusers revision; select its python_executable in the loader. keep_loaded keeps the model in its worker for the next run; profile model-offload keeps the components in host memory, int8-attention is faster and changes the image slightly. Licence: CC BY-NC 4.0. See the node README."
+        "Fibo 2.0 reads structured VGL JSON captions. The bria-vgl package (github.com/Bria-AI/vgl) writes them from plain language; the caption guide is vgl/README.md in briaai/Fibo-2.0-dev. Zero dimensions use 1024 x 1024 and zero steps use 50 steps with guidance 5 and the release's negative caption. Connect up to 4 reference images to edit. The model environment needs orbitquant 0.16.1 or later, transformers 5.20 and the pinned diffusers revision; select its python_executable in the loader. keep_loaded keeps the model in its worker for the next run; profile model-offload keeps the components in host memory, int8-attention is faster and changes the image slightly. Licence: CC BY-NC 4.0. See the node README."
       ]
     }
   ],

@@ -153,7 +153,7 @@
         "Node name for S&R": "Note"
       },
       "widgets_values": [
-        "Fibo 2.0 Edit Turbo edits the connected images in 4 steps without guidance. Write the caption of the result with its edit_instruction; bria-vgl's modify() (github.com/Bria-AI/vgl) makes one from images and a plain instruction. Zero dimensions keep the aspect ratio of the first image at about one megapixel. Connect up to 4 reference images, for example with Batch Images. The model environment needs orbitquant 0.15, transformers 5.20 and the pinned diffusers revision; select its python_executable in the loader. Licence: CC BY-NC 4.0. See the node README."
+        "Fibo 2.0 Edit Turbo edits the connected images in 4 steps without guidance. Write the caption of the result with its edit_instruction; bria-vgl's modify() (github.com/Bria-AI/vgl) makes one from images and a plain instruction. Zero dimensions keep the aspect ratio of the first image at about one megapixel. Connect up to 4 reference images, for example with Batch Images. The model environment needs orbitquant 0.16.1 or later, transformers 5.20 and the pinned diffusers revision; select its python_executable in the loader. Licence: CC BY-NC 4.0. See the node README."
       ]
     },
     {
