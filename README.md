@@ -197,21 +197,21 @@ The worker holds 6.4 GiB of host memory with the default profile and 10.8 GiB wi
 
 ### Fibo 2.0
 
-The Fibo 2.0 Dev and Edit Turbo W4A8 releases ran through ComfyUI v0.42.1's queue with the standard save node on one RTX 5090 (Torch 2.12.1, CUDA 13.0, `orbitquant` 0.15.0). Text to image was 1024 × 1024 with 50 steps and guidance 5; the edits changed one 1216 × 830 photo (1264 × 864 output) with 50 steps and guidance 5 (Dev) or 4 steps without guidance (Edit Turbo).
+The Fibo 2.0 Dev and Edit Turbo W4A8 releases ran through ComfyUI v0.42.1's queue with the standard save node on one RTX 5090 (Torch 2.12.1, CUDA 13.0, `orbitquant` 0.16.1). Text to image was 1024 × 1024 with 50 steps and guidance 5; the edits changed one 1216 × 830 photo (1264 × 864 output) with 50 steps and guidance 5 (Dev) or 4 steps without guidance (Edit Turbo).
 Device memory is the NVML total at 0.2 s intervals and includes the 1.0 GiB that the idle ComfyUI server holds. Times are per request and include loading when the request starts a worker or changes the kept model.
 
 | Request | Profile, worker | Device memory peak | Worker RAM peak | Time |
 | --- | --- | ---: | ---: | ---: |
-| Dev, text to image, first request | default, kept | 12.7 GiB | 5.0 GiB | 30.3 s |
-| Dev, text to image, next request | default, kept | 12.7 GiB | 5.0 GiB | 21.2 s |
-| Dev, edit with one reference | default, kept | 12.8 GiB | 5.0 GiB | 53.5 s |
-| Dev, text to image, profile change | int8-attention, kept | 13.0 GiB | 6.5 GiB | 22.2 s |
-| Dev, text to image | model-offload, new worker | not separated | 10.0 GiB | 39.3 s |
-| Edit Turbo, edit, model change | default, kept | 13.0 GiB | 5.0 GiB | 11.1 s |
-| Edit Turbo, edit, next request | default, kept | 13.0 GiB | 5.0 GiB | 3.0 s |
-| Edit Turbo, edit | model-offload, new worker | not separated | 9.9 GiB | 20.4 s |
+| Dev, text to image, first request | default, kept | 12.3 GiB | 5.0 GiB | 29.2 s |
+| Dev, text to image, next request | default, kept | 12.4 GiB | 5.0 GiB | 20.2 s |
+| Dev, edit with one reference | default, kept | 12.7 GiB | 5.0 GiB | 51.4 s |
+| Dev, text to image, profile change | int8-attention, kept | 13.0 GiB | 6.6 GiB | 21.3 s |
+| Dev, text to image | model-offload, new worker | not separated | 10.0 GiB | 38.3 s |
+| Edit Turbo, edit, model change | default, kept | 12.8 GiB | 5.0 GiB | 11.2 s |
+| Edit Turbo, edit, next request | default, kept | 12.8 GiB | 5.0 GiB | 3.0 s |
+| Edit Turbo, edit | model-offload, new worker | not separated | 9.9 GiB | 20.1 s |
 
-The `model-offload` requests started while the previous worker still held its memory, so the NVML total does not separate their peak. The release cards measure `--offload` alone at 5.9 GiB (Dev) and 6.5 GiB (Edit Turbo).
+The `model-offload` requests started while the previous worker still held its memory, so the NVML total does not separate their peak. The release cards measure `--offload` alone at 5.9 GiB (Dev) and 6.3 GiB (Edit Turbo).
 The first Dev image, the Dev edit, the first Edit Turbo edit and both `model-offload` images were pixel-identical to the output of the release's `run_fibo2.py` for the same caption, image and seed.
 
 ## Nodes
