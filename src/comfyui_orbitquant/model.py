@@ -143,6 +143,25 @@ def validate_layout(path: Path, adapter: str):
         if any(config.get("quant_method") != "orbitquant" for config in quantized):
             raise ValueError("The selected component is not an OrbitQuant checkpoint")
         return
+    elif adapter == "vimoo":
+        manifest = read_json(path / "manifest.json")
+        if manifest.get("format") != "vimoo-orbitquant":
+            raise ValueError("Selected recipe requires a Vimoo OrbitQuant release")
+        for name in (
+            "vimoo_orbitquant.py",
+            "modular_model_index.json",
+            "transformer/model.safetensors",
+            "text_encoder/model.safetensors",
+        ):
+            if not (path / name).is_file():
+                raise ValueError(f"Vimoo release is missing {name}")
+        quantized = [
+            read_json(path / "transformer/quantization_config.json"),
+            read_json(path / "text_encoder/config.json").get("quantization_config", {}),
+        ]
+        if any(config.get("quant_method") != "orbitquant" for config in quantized):
+            raise ValueError("The selected component is not an OrbitQuant checkpoint")
+        return
     elif adapter == "drama3":
         manifest = read_json(path / "orbitquant_manifest.json")
         if manifest.get("format") != "drama3-orbitquant":
@@ -221,7 +240,7 @@ def generation_options(
         width = height = 0
     elif media_type != "audio" and (width % multiple or height % multiple):
         raise ValueError(f"Width and height must be positive multiples of {multiple}")
-    if recipe.adapter in {"kandinsky6", "wan_component"} and frames % 4 != 1:
+    if recipe.adapter in {"kandinsky6", "wan_component", "vimoo"} and frames % 4 != 1:
         raise ValueError("Frame count must be 4n + 1, for example 121 or 81")
     if recipe.adapter == "minimax_h3" and not 120 <= frames <= 360:
         raise ValueError("MiniMax H3 requires 120 to 360 frames")
@@ -239,6 +258,8 @@ def generation_options(
         raise ValueError("Fibo 2.0 accepts at most 4 reference images")
     if recipe.adapter == "minimax_h3" and len(references or []) > 1:
         raise ValueError("MiniMax H3 accepts one reference image")
+    if recipe.adapter == "vimoo" and len(references or []) > 1:
+        raise ValueError("Vimoo accepts one reference image (the first frame of image to video)")
     profiles = {
         "kandinsky6": ("fast", "low-memory", "exact"),
         "minimax_h3": ("balanced", "speed", "minimum_vram"),
@@ -247,6 +268,7 @@ def generation_options(
         "flux3": ("default", "model-offload", "int8-attention"),
         "moss_image": ("default", "model-offload", "int8-attention"),
         "fibo2": ("default", "model-offload", "int8-attention"),
+        "vimoo": ("default", "model-offload", "int8-attention"),
     }.get(recipe.adapter, ("default",))
     profile = profiles[0] if profile == "default" and recipe.adapter != "drama3" else profile
     if profile not in profiles:

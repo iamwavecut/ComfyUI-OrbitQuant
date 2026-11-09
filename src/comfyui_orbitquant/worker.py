@@ -63,6 +63,15 @@ def check_environment(adapter: str):
                 "main branch) and Transformers 5.20 or newer in the selected model environment."
             )
         return
+    if adapter == "vimoo":
+        import diffusers
+
+        if not hasattr(diffusers, "VimooTransformer3DModel"):
+            raise RuntimeError(
+                "Vimoo needs the Vimoo-AI Diffusers fork pinned in the model card "
+                "(requirements.txt of the release) in the selected model environment."
+            )
+        return
     if adapter == "drama3":
         if importlib.util.find_spec("fish_speech") is None:
             raise RuntimeError(
@@ -649,6 +658,70 @@ def _run_fibo2(path: Path, options: dict, destination: Path, guidance: float):
     return {"image": str(image_path), "pipeline_seconds": time.perf_counter() - start}
 
 
+def _run_vimoo(path: Path, options: dict, destination: Path):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+    from vimoo_orbitquant import load_pipeline
+
+    profile = options["profile"]
+    task = "i2v" if options["references"] else "t2v"
+    pipe = cached(
+        ("vimoo", str(path), profile, task),
+        lambda: load_pipeline(
+            path,
+            task=task,
+            offload=profile == "model-offload",
+            attention="int8" if profile == "int8-attention" else "cudnn",
+        ),
+    )
+    transformer = pipe.transformer
+    done = {"calls": 0}
+
+    # Vimoo batches its guidance branches: one transformer call per step.
+    def call():
+        done["calls"] += 1
+        temporary = destination / "progress.tmp"
+        temporary.write_text(json.dumps({"step": done["calls"], "total": options["steps"]}))
+        temporary.replace(destination / "progress.json")
+
+    if not hasattr(transformer, "oq_progress"):
+        transformer.oq_progress = {"call": None}
+        transformer.forward = _count_calls(
+            transformer.forward, lambda: transformer.oq_progress["call"]()
+        )
+    transformer.oq_progress["call"] = call
+    import numpy as np
+    import torch
+
+    kwargs = dict(pipe.vimoo_defaults)
+    if options["references"]:
+        from diffusers.utils import load_image
+
+        kwargs["reference_image"] = load_image(options["references"][0])
+    kwargs.update(
+        prompt=options["prompt"],
+        width=options["width"],
+        height=options["height"],
+        num_frames=options["frames"],
+        num_inference_steps=options["steps"],
+        generator=torch.Generator("cpu").manual_seed(options["seed"]),
+        output_type="np",
+        output="videos",
+    )
+    torch.cuda.synchronize()
+    start = time.perf_counter()
+    with torch.inference_mode():
+        video = pipe(**kwargs)[0]
+    torch.cuda.synchronize()
+    seconds = time.perf_counter() - start
+    frames = (np.clip(np.asarray(video), 0, 1) * 255).round().astype(np.uint8)
+    import imageio.v2 as imageio
+
+    video_path = destination / "video.mp4"
+    imageio.mimwrite(str(video_path), list(frames), fps=pipe.vimoo_defaults["fps"], quality=9)
+    return {"video": str(video_path), "pipeline_seconds": seconds}
+
+
 def drama3_arguments(path: Path, options: dict, destination: Path) -> list[str]:
     """Command line of the release's run_tts.py for one request."""
     arguments = [
@@ -721,6 +794,8 @@ def run(request: dict) -> dict:
         return _run_moss_image(path, options, destination, handle.recipe.guidance)
     if adapter == "fibo2":
         return _run_fibo2(path, options, destination, handle.recipe.guidance)
+    if adapter == "vimoo":
+        return _run_vimoo(path, options, destination)
     if adapter == "drama3":
         return _run_drama3(path, options, destination)
     if adapter == "minimax_h3":
