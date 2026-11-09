@@ -414,7 +414,22 @@ def _inputs(media_type):
         required.update(
             frames=("INT", {"default": 0, "min": 0, "max": 1000}),
             profile=(
-                ["default", "fast", "low-memory", "exact", "balanced", "speed", "minimum_vram"],
+                [
+                    "default",
+                    "fast",
+                    "low-memory",
+                    "exact",
+                    "balanced",
+                    "speed",
+                    "minimum_vram",
+                    "model-offload",
+                    "int8-attention",
+                ],
+                {
+                    "tooltip": "Kandinsky 6: fast, low-memory, exact. MiniMax H3: balanced, speed, "
+                    "minimum_vram. Vimoo: model-offload keeps its components in host memory; "
+                    "int8-attention is faster and changes the video slightly."
+                },
             ),
             allocator_cap_gib=("FLOAT", {"default": 0.0, "min": 0.0, "max": 192.0, "step": 0.25}),
         )
@@ -455,7 +470,18 @@ def _inputs(media_type):
             ),
         }
     elif media_type != "audio":
-        result["optional"] = {"reference_images": ("IMAGE",)}
+        result["optional"] = {
+            "reference_images": ("IMAGE",),
+            "keep_loaded": (
+                "BOOLEAN",
+                {
+                    "default": False,
+                    "tooltip": "Keep the model loaded in its worker for the next run. It holds GPU "
+                    "memory until another OrbitQuant model, an image or audio run, or an "
+                    "interrupt stops the worker.",
+                },
+            ),
+        }
     else:
         optional = {}
         for index in range(1, SPEAKER_SLOTS + 1):
@@ -537,6 +563,7 @@ class OrbitQuantGenerateModelVideo:
         profile="default",
         allocator_cap_gib=0.0,
         reference_images=None,
+        keep_loaded=False,
     ):
         path, report = _generate(
             model,
@@ -550,6 +577,7 @@ class OrbitQuantGenerateModelVideo:
             profile,
             allocator_cap_gib,
             reference_images,
+            keep_loaded=keep_loaded,
         )
         import folder_paths
         from comfy_api.latest import InputImpl

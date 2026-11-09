@@ -12,7 +12,7 @@ Outputs connect to ComfyUI's standard `SaveImage`, `SaveVideo`, and `SaveAudio` 
 4. Choose a model in **OrbitQuant Model Loader**. Empty `model_path` and `repo_id` use the selected public release.
 5. Connect the loader to the matching generator and run the workflow.
 
-The [example workflows](example_workflows) include Kandinsky at 320p and 480p, FLUX.2 klein, FLUX.3 klein, MOSS-Image, Fibo 2.0 Dev and Edit Turbo, MiniMax H3, YuE2, and Drama 3.
+The [example workflows](example_workflows) include Kandinsky at 320p and 480p, FLUX.2 klein, FLUX.3 klein, MOSS-Image, Fibo 2.0 Dev and Edit Turbo, MiniMax H3, Vimoo 1.0 and 1.0 Lite, YuE2, and Drama 3.
 Zero dimensions, frames, or steps use that model's release defaults.
 
 ## Models
@@ -34,10 +34,12 @@ Zero dimensions, frames, or steps use that model's release defaults.
 | MOSS-Image SFT | W4A8 | Image | — |
 | Fibo 2.0 Dev | W4A8 | Image | Yes, up to 4 |
 | Fibo 2.0 Edit Turbo | W4A8 | Image | Yes, up to 4 |
+| Vimoo 1.0 | W4A8 | Video | One (first frame) |
+| Vimoo 1.0 Lite | W4A8 | Video | One (first frame) |
 | YuE2 3B | W4A4 | 48 kHz stereo audio | — |
 | Drama 3 | W4A4, W2A2 | Speech audio | Voice references |
 
-The catalog contains 32 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
+The catalog contains 34 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
 Use `hf auth login` in the worker environment for private or gated repositories.
 Alternatively, set `model_path` to a complete local release. The loader validates its layout before generation.
 
@@ -55,7 +57,7 @@ Use Python 3.12 and the following packages for the common environment:
 python3.12 -m venv /path/to/orbitquant-env
 source /path/to/orbitquant-env/bin/activate
 python -m pip install torch==2.12.1 torchvision==0.27.1 --index-url https://download.pytorch.org/whl/cu130
-python -m pip install "orbitquant[hf]==0.16.1" \
+python -m pip install "orbitquant[hf]==0.17.1" \
   "diffusers @ git+https://github.com/huggingface/diffusers.git@d961a388fd02e4db38d17350c8dd9b8abe642e05" \
   "transformers>=5.17,<6" accelerate av imageio-ffmpeg pillow librosa soundfile einops kernels bitsandbytes
 python -m orbitquant.cli.main kernels-install
@@ -95,11 +97,19 @@ python /models/Drama-3-OrbitQuant-W4A4/install_runtime.py --venv /models/drama3-
 ```
 
 Fibo 2.0 needs a Diffusers revision that contains `BriaFibo2Pipeline`; Diffusers 0.41.0 does not. Use a separate
-environment with the same Torch, `orbitquant[hf]==0.16.1`, `transformers==5.20.1` and this revision:
+environment with the same Torch, `orbitquant[hf]==0.17.1`, `transformers==5.20.1` and this revision:
 
 ```bash
 python -m pip install \
   "diffusers @ git+https://github.com/huggingface/diffusers.git@48cdbaef5ee3d718aaee392b44f2099ae511c4a5"
+```
+
+Vimoo 1.0 and 1.0 Lite run on the Vimoo-AI Diffusers fork. Use a separate environment with the same Torch and
+`orbitquant[hf]==0.17.1`:
+
+```bash
+python -m pip install "orbitquant[hf]==0.17.1" "transformers==5.22.2" accelerate sentencepiece protobuf imageio imageio-ffmpeg \
+  "diffusers @ git+https://github.com/Vimoo-AI/diffusers@6d0bfa301cd3ff919e5a261582704c1ae74696b0"
 ```
 
 For Boogu, add the pinned official package to the common environment:
@@ -122,13 +132,14 @@ The explicit dependency installation above supplies this adapter's runtime. The 
 - **FLUX.3 Klein:** write a full scene caption. Short prompts give generic images. The default 16 steps match the distilled model, which uses no guidance. Zero dimensions give 1024 × 1024, or the size of the first reference image when references are connected. Connect up to 10 reference images. The `profile` input `model-offload` keeps the transformer, the text encoder and the autoencoder in host memory and moves each to the GPU for its own stage. `int8-attention` uses INT8 Q·K attention: it is faster and changes the image slightly. The release runs 8-bit transformer activations over 4-bit weights and needs `orbitquant` 0.13 or later in the model environment.
 - **MOSS-Image:** write a detailed prompt; text in quotes is rendered on the image. Zero dimensions give 1024 × 1024 and zero steps give 50 steps with guidance 3, as in the original pipeline. The `profile` input `model-offload` keeps the transformer, the text encoder and the autoencoder in host memory and moves each to the GPU for its own stage. `int8-attention` uses INT8 Q·K attention: it is faster and changes the image slightly. The release runs 8-bit activations over 4-bit weights in the transformer and the text encoder and needs `orbitquant` 0.14 or later, Transformers 5.20 and Diffusers 0.41 in the model environment.
 - **Fibo 2.0:** enter a structured VGL JSON caption. [`bria-vgl`](https://github.com/Bria-AI/vgl) writes one from plain language; the [caption guide](https://huggingface.co/briaai/Fibo-2.0-dev/blob/main/vgl/README.md) describes the fields. Dev uses 50 steps with guidance 5 and the release's negative caption; Edit Turbo uses 4 steps without guidance. Zero dimensions give 1024 × 1024, or the aspect ratio of the first reference image at about one megapixel when references are connected. Connect up to 4 reference images and put the change into the caption's `edit_instruction`. The node has no mask input; the release's `run_fibo2.py --mask` covers masked edits. Profiles are the same as for MOSS-Image. Both models are licensed under CC BY-NC 4.0.
+- **Vimoo 1.0 and 1.0 Lite:** zero dimensions, frames and steps give the original defaults: 1280 × 720, 121 frames at 24 fps, 50 steps. Frame counts must be 4n + 1. Connect one reference image for image to video: it becomes the first frame; without one the node runs text to video. Vimoo 1.0 loads its separate image-to-video transformer for that task. Guidance, flow shift and the negative prompt follow the official examples. The `profile` input `model-offload` keeps the transformer, the text encoder, the autoencoder and the image encoder in host memory and moves each to the GPU for its own stage; `int8-attention` uses INT8 Q·K attention: it is faster and changes the video slightly. Both releases run 8-bit activations over 4-bit weights in the transformer and the Qwen2.5-VL text encoder.
 - **Drama 3:** enter the text to speak in `prompt`. Connect voice references to `speaker_audio_1` to `speaker_audio_4` and type the words spoken in each reference in the matching `speaker_text_N`. Reference N speaks for `<|speaker:N-1|>`. `frames` limits the generated audio frames; zero uses 500. The `default` profile switches to `eager` for text with speaker tags. `cpu-offload` stores the backbone in host RAM.
 
 **OrbitQuant Generate Image** sends the prompt as typed. The frontend's `{a|b}` dynamic-prompt pass removes every brace and `//` comment, so it is off for this node and JSON captions (Fibo 2.0, Ideogram) arrive intact. The video and audio generators keep it.
 
 ComfyUI unloads its managed models before a worker starts.
-**OrbitQuant Generate Image** has `keep_loaded`, on by default. Its worker stays alive and keeps the last model loaded, so the next request with the same model and profile skips process startup and loading. A request with another model or profile replaces the kept model in the same worker. Another Python environment, a video or audio run, a run with `keep_loaded` off, an interrupt or the ComfyUI exit stops the worker and frees its GPU memory.
-With `keep_loaded` off, and for video and audio, each request starts a new worker, loads the model, and releases its CUDA allocations when it finishes.
+**OrbitQuant Generate Image** has `keep_loaded`, on by default; **OrbitQuant Generate Model Video** has it too, off by default. Its worker stays alive and keeps the last model loaded, so the next request with the same model and profile skips process startup and loading. A request with another model or profile replaces the kept model in the same worker. Another Python environment, an audio run, a run with `keep_loaded` off, an interrupt or the ComfyUI exit stops the worker and frees its GPU memory.
+With `keep_loaded` off, and for audio, each request starts a new worker, loads the model, and releases its CUDA allocations when it finishes.
 The first request can include downloads and kernel compilation. Published warm pipeline timings exclude those costs.
 
 Cancellation stops the worker process tree. Failed runs report the generation log path.
@@ -214,6 +225,24 @@ Device memory is the NVML total at 0.2 s intervals and includes the 1.0 GiB that
 The `model-offload` requests started while the previous worker still held its memory, so the NVML total does not separate their peak. The release cards measure `--offload` alone at 5.9 GiB (Dev) and 6.3 GiB (Edit Turbo).
 The first Dev image, the Dev edit, the first Edit Turbo edit and both `model-offload` images were pixel-identical to the output of the release's `run_fibo2.py` for the same caption, image and seed.
 
+### Vimoo 1.0 and 1.0 Lite
+
+The Vimoo-1.0-Lite and Vimoo-1.0 W4A8 releases ran through ComfyUI v0.44.0's queue with the standard save node on one RTX 5090 (Torch 2.12.1, CUDA 13.0, `orbitquant` 0.17.1). Lite made the default 1280 × 720 video with 121 frames and 50 steps. Vimoo-1.0 made 848 × 480 videos with 49 frames and 50 steps: at the default size it takes about 50 minutes per video on this GPU.
+Device memory is the NVML total at 0.2 s intervals and includes the 1.0 GiB that the idle ComfyUI server holds. Times are per request and include loading when the request starts a worker or changes the kept model.
+
+| Request | Profile, worker | Device memory peak | Time |
+| --- | --- | ---: | ---: |
+| Lite, text to video, first request | default, kept | 20.4 GiB | 285 s |
+| Lite, text to video, next request | default, kept | 20.4 GiB | 278 s |
+| Lite, image to video | default, kept | 24.5 GiB | 417 s |
+| Lite, text to video, profile change | int8-attention, kept | not separated | 207 s |
+| Lite, text to video | model-offload, new worker | not separated | 301 s |
+| Vimoo-1.0, text to video, 848 × 480 × 49, first request | default, kept | 20.3 GiB | 150 s |
+| Vimoo-1.0, image to video, 848 × 480 × 49, model change | default, kept | 21.0 GiB | 154 s |
+
+The `int8-attention` and `model-offload` requests started while the previous worker still held its memory, so the NVML total does not separate their peak. The release cards measure each profile alone.
+For the first Lite and the first Vimoo-1.0 request the worker's MP4 was byte-identical to the output of the release's `run_vimoo.py` for the same prompt and seed, and the frames that Save Video wrote were pixel-identical.
+
 ## Nodes
 
 | Node | Purpose |
@@ -249,7 +278,7 @@ For a manual clone, install the `orbitquant` package into the Python
 environment used by ComfyUI and provision the native kernels explicitly:
 
 ```bash
-python -m pip install "orbitquant>=0.16.1,<1"
+python -m pip install "orbitquant>=0.17.1,<1"
 python -m orbitquant.cli.main kernels-install
 ```
 
@@ -258,7 +287,7 @@ OrbitQuant with its kernel runtime extra. This provides the Triton fallback
 used when no native variant matches:
 
 ```bash
-python -m pip install "orbitquant[hf,kernels]>=0.16.1,<1"
+python -m pip install "orbitquant[hf,kernels]>=0.17.1,<1"
 ```
 
 If you install this node pack from PyPI, the same kernel runtime dependencies
@@ -327,7 +356,7 @@ the public model into a local directory using the same environment as ComfyUI:
 ```bash
 hf download WaveCut/MiniMax-H3-OrbitQuant-W4A4 \
   --local-dir /models/MiniMax-H3-OrbitQuant-W4A4
-python -m pip install "orbitquant[hf,kernels]>=0.16.1,<1"
+python -m pip install "orbitquant[hf,kernels]>=0.17.1,<1"
 python -m pip install \
   "diffusers @ git+https://github.com/huggingface/diffusers.git@abc5e9bf71fd38f53cd471bc3acaa84bc5ecbfdc" \
   "transformers>=5.13,<6" accelerate av soundfile

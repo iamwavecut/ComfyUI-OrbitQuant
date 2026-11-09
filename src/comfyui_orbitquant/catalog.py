@@ -106,6 +106,34 @@ def _catalog() -> dict[str, Recipe]:
             ("W4A8",),
             {"steps": 4, "guidance": 1.0, "reference_images": True},
         ),
+        (
+            "Vimoo-1.0-Lite",
+            "vimoo",
+            ("W4A8",),
+            {
+                "media_type": "video",
+                "width": 1280,
+                "height": 720,
+                "steps": 50,
+                "frames": 121,
+                "guidance": 4.0,
+                "reference_images": True,
+            },
+        ),
+        (
+            "Vimoo-1.0",
+            "vimoo",
+            ("W4A8",),
+            {
+                "media_type": "video",
+                "width": 1280,
+                "height": 720,
+                "steps": 50,
+                "frames": 121,
+                "guidance": 4.5,
+                "reference_images": True,
+            },
+        ),
     ):
         recipes.extend(
             Recipe(f"WaveCut/{family}-OrbitQuant-{bit}", adapter, **options) for bit in bits

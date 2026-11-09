@@ -36,7 +36,7 @@ def test_all_published_recipes_have_valid_defaults(recipe):
 
 
 def test_catalog_covers_all_public_model_families():
-    assert len(CATALOG) == 32
+    assert len(CATALOG) == 34
     assert {r.adapter for r in CATALOG.values()} == {
         "kandinsky6",
         "flux_component",
@@ -54,6 +54,7 @@ def test_catalog_covers_all_public_model_families():
         "drama3",
         "moss_image",
         "fibo2",
+        "vimoo",
     }
     assert not any("lab" in name or "packed-matmul" in name for name in CATALOG)
 
@@ -520,6 +521,57 @@ def test_fibo2_layout_checks_the_release_manifest_and_both_components(tmp_path):
     (tmp_path / "fonts/DejaVuSans.ttf").unlink()
     with pytest.raises(ValueError, match="missing fonts/DejaVuSans.ttf"):
         model.validate_layout(tmp_path, "fibo2")
+
+
+def test_vimoo_defaults_profiles_and_first_frame_reference():
+    lite = CATALOG["WaveCut/Vimoo-1.0-Lite-OrbitQuant-W4A8"]
+    full = CATALOG["WaveCut/Vimoo-1.0-OrbitQuant-W4A8"]
+    assert (lite.width, lite.height, lite.frames, lite.steps, lite.fps) == (1280, 720, 121, 50, 24)
+    assert (full.media_type, full.guidance, lite.guidance) == ("video", 4.5, 4.0)
+    result = options("vimoo")
+    assert (result["frames"], result["profile"], result["references"]) == (121, "default", [])
+    assert options("vimoo", profile="model-offload")["profile"] == "model-offload"
+    assert options("vimoo", profile="int8-attention")["profile"] == "int8-attention"
+    assert options("vimoo", references=["a.png"], frames=61)["references"] == ["a.png"]
+    with pytest.raises(ValueError, match="one reference"):
+        options("vimoo", references=["a.png", "b.png"])
+    with pytest.raises(ValueError, match="4n"):
+        options("vimoo", frames=60)
+    with pytest.raises(ValueError, match="profiles"):
+        options("vimoo", profile="fast")
+
+
+def test_video_node_offers_the_vimoo_profiles_and_keep_loaded():
+    inputs = media_nodes.OrbitQuantGenerateModelVideo.INPUT_TYPES()
+    assert {"model-offload", "int8-attention"} <= set(inputs["required"]["profile"][0])
+    assert inputs["optional"]["keep_loaded"][1]["default"] is False
+
+
+def test_vimoo_layout_checks_the_release_manifest_and_both_components(tmp_path):
+    files = (
+        "vimoo_orbitquant.py",
+        "modular_model_index.json",
+        "transformer/model.safetensors",
+        "text_encoder/model.safetensors",
+    )
+    for name in files:
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_bytes(b"x")
+    quantized = {"quant_method": "orbitquant"}
+    (tmp_path / "transformer/quantization_config.json").write_text(json.dumps(quantized))
+    (tmp_path / "text_encoder/config.json").write_text(json.dumps({"quantization_config": {}}))
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "fibo2-orbitquant"}))
+    with pytest.raises(ValueError, match="Vimoo OrbitQuant"):
+        model.validate_layout(tmp_path, "vimoo")
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "vimoo-orbitquant"}))
+    with pytest.raises(ValueError, match="not an OrbitQuant"):
+        model.validate_layout(tmp_path, "vimoo")
+    text_config = {"quantization_config": quantized}
+    (tmp_path / "text_encoder/config.json").write_text(json.dumps(text_config))
+    model.validate_layout(tmp_path, "vimoo")
+    (tmp_path / "vimoo_orbitquant.py").unlink()
+    with pytest.raises(ValueError, match="missing vimoo_orbitquant.py"):
+        model.validate_layout(tmp_path, "vimoo")
 
 
 def test_drama3_defaults_and_speaker_rules():
