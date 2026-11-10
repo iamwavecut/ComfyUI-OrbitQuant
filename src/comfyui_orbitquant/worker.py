@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import errno
+import functools
 import gc
 import importlib
 import importlib.util
@@ -61,6 +62,15 @@ def check_environment(adapter: str):
             raise RuntimeError(
                 "Fibo 2.0 needs a diffusers release with BriaFibo2Pipeline (0.42 or newer, or the "
                 "main branch) and Transformers 5.20 or newer in the selected model environment."
+            )
+        return
+    if adapter == "minimax_h3_image":
+        import diffusers
+
+        if not hasattr(diffusers, "MiniMaxH3ImageTransformer2DModel"):
+            raise RuntimeError(
+                "MiniMax-H3-Image needs the Diffusers revision pinned in the model card "
+                "(requirements.txt of the release) in the selected model environment."
             )
         return
     if adapter == "vimoo":
@@ -483,6 +493,9 @@ def _run_yue2(path: Path, options: dict, destination: Path):
 
 
 def _count_calls(function, on_call):
+    # wraps keeps the signature visible: the MiniMax-H3-Image pipeline passes only the inputs that
+    # inspect.signature(transformer.forward) names.
+    @functools.wraps(function)
     def counted(*args, **kwargs):
         on_call()
         return function(*args, **kwargs)
@@ -658,6 +671,60 @@ def _run_fibo2(path: Path, options: dict, destination: Path, guidance: float):
     return {"image": str(image_path), "pipeline_seconds": time.perf_counter() - start}
 
 
+def _run_minimax_h3_image(path: Path, options: dict, destination: Path):
+    from PIL import Image
+
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+    from minimax_h3_image_orbitquant import load_pipeline
+
+    profile = options["profile"]
+    pipe = cached(
+        ("minimax_h3_image", str(path), profile),
+        lambda: load_pipeline(
+            path,
+            offload=profile == "model-offload",
+            attention="int8" if profile == "int8-attention" else "cudnn",
+        ),
+    )
+    transformer = pipe.transformer
+    done = {"calls": 0}
+
+    def call():
+        done["calls"] += 1
+        temporary = destination / "progress.tmp"
+        temporary.write_text(json.dumps({"step": done["calls"], "total": options["steps"]}))
+        temporary.replace(destination / "progress.json")
+
+    # A kept model is wrapped once; each request installs its own progress callback.
+    if not hasattr(transformer, "oq_progress"):
+        transformer.oq_progress = {"call": None}
+        transformer.forward = _count_calls(
+            transformer.forward, lambda: transformer.oq_progress["call"]()
+        )
+    transformer.oq_progress["call"] = call
+    images = [Image.open(p).convert("RGB") for p in options["references"]]
+    kwargs = {}
+    if images:
+        kwargs["image"] = images if len(images) > 1 else images[0]
+    import torch
+
+    torch.cuda.synchronize()
+    start = time.perf_counter()
+    image = pipe(
+        prompt=options["prompt"],
+        height=options["height"],
+        width=options["width"],
+        generator=torch.Generator("cpu").manual_seed(options["seed"]),
+        output="images",
+        **kwargs,
+    )[0]
+    torch.cuda.synchronize()
+    image_path = destination / "image.png"
+    image.save(image_path)
+    return {"image": str(image_path), "pipeline_seconds": time.perf_counter() - start}
+
+
 def _run_vimoo(path: Path, options: dict, destination: Path):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
@@ -794,6 +861,8 @@ def run(request: dict) -> dict:
         return _run_moss_image(path, options, destination, handle.recipe.guidance)
     if adapter == "fibo2":
         return _run_fibo2(path, options, destination, handle.recipe.guidance)
+    if adapter == "minimax_h3_image":
+        return _run_minimax_h3_image(path, options, destination)
     if adapter == "vimoo":
         return _run_vimoo(path, options, destination)
     if adapter == "drama3":

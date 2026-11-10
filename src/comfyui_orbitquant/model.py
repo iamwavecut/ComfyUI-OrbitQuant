@@ -143,6 +143,25 @@ def validate_layout(path: Path, adapter: str):
         if any(config.get("quant_method") != "orbitquant" for config in quantized):
             raise ValueError("The selected component is not an OrbitQuant checkpoint")
         return
+    elif adapter == "minimax_h3_image":
+        manifest = read_json(path / "manifest.json")
+        if manifest.get("format") != "minimax-h3-image-orbitquant":
+            raise ValueError("Selected recipe requires a MiniMax-H3-Image OrbitQuant release")
+        for name in (
+            "minimax_h3_image_orbitquant.py",
+            "transformer/model.safetensors",
+            "transformer/modulation.json",
+            "text_encoder/config.json",
+        ):
+            if not (path / name).is_file():
+                raise ValueError(f"MiniMax-H3-Image release is missing {name}")
+        quantized = [
+            read_json(path / "transformer/quantization_config.json"),
+            read_json(path / "text_encoder/config.json").get("quantization_config", {}),
+        ]
+        if any(config.get("quant_method") != "orbitquant" for config in quantized):
+            raise ValueError("The selected component is not an OrbitQuant checkpoint")
+        return
     elif adapter == "vimoo":
         manifest = read_json(path / "manifest.json")
         if manifest.get("format") != "vimoo-orbitquant":
@@ -234,7 +253,7 @@ def generation_options(
         steps or recipe.steps,
         frames or recipe.frames,
     )
-    multiple = 32 if recipe.adapter == "minimax_h3" else 16
+    multiple = 32 if recipe.adapter in {"minimax_h3", "minimax_h3_image"} else 16
     # An edit without explicit dimensions keeps the first reference image's size.
     if recipe.adapter in {"flux3", "fibo2"} and references and not explicit_size:
         width = height = 0
@@ -246,6 +265,8 @@ def generation_options(
         raise ValueError("MiniMax H3 requires 120 to 360 frames")
     if recipe.adapter == "minimax_h3" and steps < 2:
         raise ValueError("MiniMax H3 requires at least two sigma points")
+    if recipe.adapter == "minimax_h3_image" and steps != 6:
+        raise ValueError("MiniMax-H3-Image is distilled to 6 steps")
     if recipe.adapter == "qwen_image21" and steps not in TURBO_SIGMAS:
         raise ValueError("Turbo Image supports 4, 5, 6, 7 or 8 steps")
     if recipe.adapter == "kandinsky6" and steps != 10:
@@ -258,6 +279,8 @@ def generation_options(
         raise ValueError("Fibo 2.0 accepts at most 4 reference images")
     if recipe.adapter == "minimax_h3" and len(references or []) > 1:
         raise ValueError("MiniMax H3 accepts one reference image")
+    if recipe.adapter == "minimax_h3_image" and len(references or []) > 16:
+        raise ValueError("MiniMax-H3-Image accepts at most 16 reference images")
     if recipe.adapter == "vimoo" and len(references or []) > 1:
         raise ValueError("Vimoo accepts one reference image (the first frame of image to video)")
     profiles = {
@@ -269,6 +292,7 @@ def generation_options(
         "moss_image": ("default", "model-offload", "int8-attention"),
         "fibo2": ("default", "model-offload", "int8-attention"),
         "vimoo": ("default", "model-offload", "int8-attention"),
+        "minimax_h3_image": ("default", "model-offload", "int8-attention"),
     }.get(recipe.adapter, ("default",))
     profile = profiles[0] if profile == "default" and recipe.adapter != "drama3" else profile
     if profile not in profiles:
