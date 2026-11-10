@@ -113,6 +113,12 @@ def _catalog() -> dict[str, Recipe]:
             {"width": 2048, "height": 2048, "steps": 6, "reference_images": True},
         ),
         (
+            "MiniMax-H3-Image-Pruned",
+            "minimax_h3_image",
+            ("W4A8",),
+            {"width": 2048, "height": 2048, "steps": 6, "reference_images": True},
+        ),
+        (
             "Vimoo-1.0-Lite",
             "vimoo",
             ("W4A8",),

@@ -35,12 +35,13 @@ Zero dimensions, frames, or steps use that model's release defaults.
 | Fibo 2.0 Dev | W4A8 | Image | Yes, up to 4 |
 | Fibo 2.0 Edit Turbo | W4A8 | Image | Yes, up to 4 |
 | MiniMax-H3-Image | W4A8 | Image | Yes, up to 16 |
+| MiniMax-H3-Image Pruned | W4A8 | Image | Yes, up to 16 |
 | Vimoo 1.0 | W4A8 | Video | One (first frame) |
 | Vimoo 1.0 Lite | W4A8 | Video | One (first frame) |
 | YuE2 3B | W4A4 | 48 kHz stereo audio | — |
 | Drama 3 | W4A4, W2A2 | Speech audio | Voice references |
 
-The catalog contains 35 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
+The catalog contains 36 public repositories. For a compatible private variant, select its base recipe and set `repo_id`.
 Use `hf auth login` in the worker environment for private or gated repositories.
 Alternatively, set `model_path` to a complete local release. The loader validates its layout before generation.
 
@@ -113,13 +114,16 @@ python -m pip install "orbitquant[hf]==0.18.0" "transformers==5.22.2" accelerate
   "diffusers @ git+https://github.com/Vimoo-AI/diffusers@6d0bfa301cd3ff919e5a261582704c1ae74696b0"
 ```
 
-MiniMax-H3-Image runs on the Diffusers revision of the MiniMax-H3-Image pull request. Use a separate environment
-with the same Torch and `orbitquant[hf]==0.18.0`:
+MiniMax-H3-Image and MiniMax-H3-Image Pruned run on the Diffusers commit that merged MiniMax-H3-Image. Use a
+separate environment with the same Torch and `orbitquant[hf]==0.18.0`:
 
 ```bash
 python -m pip install "orbitquant[hf]==0.18.0" "transformers==5.22.2" accelerate \
-  "diffusers @ git+https://github.com/huggingface/diffusers@79139736248f3cd1afb3c11559ccab6066d3fe81"
+  "diffusers @ git+https://github.com/huggingface/diffusers@875373ac7f5856071e345a3e394c74efccc6b9e6"
 ```
+
+Both release cards pin this commit. No Diffusers release on PyPI includes MiniMax-H3-Image yet (the latest is
+0.42.1); the pin moves to the first release that does.
 
 For Boogu, add the pinned official package to the common environment:
 
@@ -143,6 +147,7 @@ The explicit dependency installation above supplies this adapter's runtime. The 
 - **Fibo 2.0:** enter a structured VGL JSON caption. [`bria-vgl`](https://github.com/Bria-AI/vgl) writes one from plain language; the [caption guide](https://huggingface.co/briaai/Fibo-2.0-dev/blob/main/vgl/README.md) describes the fields. Dev uses 50 steps with guidance 5 and the release's negative caption; Edit Turbo uses 4 steps without guidance. Zero dimensions give 1024 × 1024, or the aspect ratio of the first reference image at about one megapixel when references are connected. Connect up to 4 reference images and put the change into the caption's `edit_instruction`. The node has no mask input; the release's `run_fibo2.py --mask` covers masked edits. Profiles are the same as for MOSS-Image. Both models are licensed under CC BY-NC 4.0.
 - **Vimoo 1.0 and 1.0 Lite:** zero dimensions, frames and steps give the original defaults: 1280 × 720, 121 frames at 24 fps, 50 steps. Frame counts must be 4n + 1. Connect one reference image for image to video: it becomes the first frame; without one the node runs text to video. Vimoo 1.0 loads its separate image-to-video transformer for that task. Guidance, flow shift and the negative prompt follow the official examples. The `profile` input `model-offload` keeps the transformer, the text encoder, the autoencoder and the image encoder in host memory and moves each to the GPU for its own stage; `int8-attention` uses INT8 Q·K attention: it is faster and changes the video slightly. Both releases run 8-bit activations over 4-bit weights in the transformer and the Qwen2.5-VL text encoder.
 - **MiniMax-H3-Image:** write a detailed English description of the whole image, as the [model card](https://huggingface.co/WaveCut/MiniMax-H3-Image-OrbitQuant-W4A8) describes; short prompts give plain images. Zero dimensions give 2048 × 2048; both sides must be multiples of 32, and the model is trained for 4 to 20 megapixels (16 MP gives the most detail). Zero steps give the model's six steps; the release supports only that schedule. Connect up to 16 reference images and refer to them in the prompt as `<Picture 1>`, `<Picture 2>` and so on. The `profile` input `model-offload` keeps the transformer, the text encoder and the autoencoder in host memory and moves each to the GPU for its own stage; `int8-attention` uses INT8 Q·K attention: it is faster at 16 MP and changes the image slightly. The release runs 8-bit activations over 4-bit weights in the transformer and the MiniMax-H3 text encoder. The MiniMax-H3-Image Community License excludes use in the European Union, the United Kingdom, the Republic of Korea and the United States.
+- **MiniMax-H3-Image Pruned:** the same inputs, defaults and profiles as MiniMax-H3-Image. The release quantizes [MiniMax-H3-Image-Pruned](https://huggingface.co/WaveCut/MiniMax-H3-Image-Pruned), whose transformer computes the AdaLN modulation with the stock Diffusers forward pass; see its [model card](https://huggingface.co/WaveCut/MiniMax-H3-Image-Pruned-OrbitQuant-W4A8).
 - **Drama 3:** enter the text to speak in `prompt`. Connect voice references to `speaker_audio_1` to `speaker_audio_4` and type the words spoken in each reference in the matching `speaker_text_N`. Reference N speaks for `<|speaker:N-1|>`. `frames` limits the generated audio frames; zero uses 500. The `default` profile switches to `eager` for text with speaker tags. `cpu-offload` stores the backbone in host RAM.
 
 **OrbitQuant Generate Image** sends the prompt as typed. The frontend's `{a|b}` dynamic-prompt pass removes every brace and `//` comment, so it is off for this node and JSON captions (Fibo 2.0, Ideogram) arrive intact. The video and audio generators keep it.
@@ -269,6 +274,22 @@ Device memory is the NVML total at 0.2 s intervals and includes the 1.2 GiB that
 
 The kept worker does not return cached device memory between requests, and the `model-offload` request started while the previous worker still held its memory, so the NVML total does not separate those peaks. The [release card](https://huggingface.co/WaveCut/MiniMax-H3-Image-OrbitQuant-W4A8) measures each profile alone.
 The first text-to-image image, the edit and the `model-offload` image were pixel-identical to the output of the release's `run_minimax_h3_image.py` for the same prompt, image and seed.
+
+### MiniMax-H3-Image Pruned
+
+The MiniMax-H3-Image-Pruned W4A8 release ran the same requests through ComfyUI v0.44.0 on another RTX PRO 6000 Blackwell host (96 GB, 600 W; Torch 2.12.1, CUDA 13.0, `orbitquant` 0.18.0, Diffusers `875373ac`).
+
+| Request | Profile, worker | Device memory peak | Worker RAM peak | Time |
+| --- | --- | ---: | ---: | ---: |
+| Text to image, 2048 × 2048, first request | default, kept | 29.9 GiB | 15.3 GiB | 22.2 s |
+| Text to image, 2048 × 2048, next request | default, kept | 29.9 GiB | 15.3 GiB | 5.1 s |
+| Edit with one reference, 2048 × 2048 | default, kept | 34.7 GiB | 15.3 GiB | 9.1 s |
+| Text to image, 4096 × 4096 | default, kept | not separated | 15.3 GiB | 26.2 s |
+| Text to image, 2048 × 2048, profile change | int8-attention, kept | not separated | 16.6 GiB | 13.2 s |
+| Text to image, 2048 × 2048 | model-offload, new worker | not separated | 27.2 GiB | 46.5 s |
+
+The first request and the `model-offload` request include loading. On this host loading took about 14 s for both MiniMax-H3-Image releases, against about 8 s on the host of the MiniMax-H3-Image table.
+The first text-to-image image, the edit and the `model-offload` image were pixel-identical to the output of the release's `run_minimax_h3_image.py` for the same prompt, image and seed. The [release card](https://huggingface.co/WaveCut/MiniMax-H3-Image-Pruned-OrbitQuant-W4A8) measures each profile alone.
 
 ## Nodes
 

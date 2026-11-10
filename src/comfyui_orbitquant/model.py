@@ -147,12 +147,16 @@ def validate_layout(path: Path, adapter: str):
         manifest = read_json(path / "manifest.json")
         if manifest.get("format") != "minimax-h3-image-orbitquant":
             raise ValueError("Selected recipe requires a MiniMax-H3-Image OrbitQuant release")
-        for name in (
+        required = [
             "minimax_h3_image_orbitquant.py",
             "transformer/model.safetensors",
-            "transformer/modulation.json",
             "text_encoder/config.json",
-        ):
+        ]
+        if manifest.get("variant") != "pruned":
+            # The first release tabulates the AdaLN modulation; the pruned release
+            # computes it with the stock forward.
+            required.append("transformer/modulation.json")
+        for name in required:
             if not (path / name).is_file():
                 raise ValueError(f"MiniMax-H3-Image release is missing {name}")
         quantized = [
