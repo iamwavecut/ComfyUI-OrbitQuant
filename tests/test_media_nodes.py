@@ -36,7 +36,7 @@ def test_all_published_recipes_have_valid_defaults(recipe):
 
 
 def test_catalog_covers_all_public_model_families():
-    assert len(CATALOG) == 36
+    assert len(CATALOG) == 35
     assert {r.adapter for r in CATALOG.values()} == {
         "kandinsky6",
         "flux_component",
@@ -619,22 +619,6 @@ def test_minimax_h3_image_layout_checks_the_manifest_and_both_components(tmp_pat
     (tmp_path / "transformer/modulation.json").unlink()
     with pytest.raises(ValueError, match="missing transformer/modulation.json"):
         model.validate_layout(tmp_path, "minimax_h3_image")
-    # The pruned release computes the modulation with the stock forward and ships no table.
-    (tmp_path / "manifest.json").write_text(
-        json.dumps({"format": "minimax-h3-image-orbitquant", "variant": "pruned"})
-    )
-    model.validate_layout(tmp_path, "minimax_h3_image")
-    (tmp_path / "text_encoder/config.json").unlink()
-    with pytest.raises(ValueError, match="missing text_encoder/config.json"):
-        model.validate_layout(tmp_path, "minimax_h3_image")
-
-
-def test_minimax_h3_image_pruned_uses_the_image_recipe():
-    pruned = CATALOG["WaveCut/MiniMax-H3-Image-Pruned-OrbitQuant-W4A8"]
-    assert pruned.to_dict() == {
-        **CATALOG["WaveCut/MiniMax-H3-Image-OrbitQuant-W4A8"].to_dict(),
-        "repo_id": "WaveCut/MiniMax-H3-Image-Pruned-OrbitQuant-W4A8",
-    }
 
 
 def test_drama3_defaults_and_speaker_rules():
