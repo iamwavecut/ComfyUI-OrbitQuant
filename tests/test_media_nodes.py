@@ -36,7 +36,7 @@ def test_all_published_recipes_have_valid_defaults(recipe):
 
 
 def test_catalog_covers_all_public_model_families():
-    assert len(CATALOG) == 34
+    assert len(CATALOG) == 35
     assert {r.adapter for r in CATALOG.values()} == {
         "kandinsky6",
         "flux_component",
@@ -55,6 +55,7 @@ def test_catalog_covers_all_public_model_families():
         "moss_image",
         "fibo2",
         "vimoo",
+        "minimax_h3_image",
     }
     assert not any("lab" in name or "packed-matmul" in name for name in CATALOG)
 
@@ -574,6 +575,52 @@ def test_vimoo_layout_checks_the_release_manifest_and_both_components(tmp_path):
         model.validate_layout(tmp_path, "vimoo")
 
 
+def test_minimax_h3_image_defaults_steps_and_references():
+    recipe = CATALOG["WaveCut/MiniMax-H3-Image-OrbitQuant-W4A8"]
+    defaults = (recipe.width, recipe.height, recipe.steps, recipe.media_type)
+    assert defaults == (2048, 2048, 6, "image")
+    result = options("minimax_h3_image")
+    assert (result["width"], result["height"], result["steps"]) == (2048, 2048, 6)
+    assert result["profile"] == "default"
+    assert options("minimax_h3_image", profile="model-offload")["profile"] == "model-offload"
+    assert options("minimax_h3_image", profile="int8-attention")["profile"] == "int8-attention"
+    references = [f"{i}.png" for i in range(16)]
+    assert options("minimax_h3_image", references=references)["references"] == references
+    with pytest.raises(ValueError, match="at most 16"):
+        options("minimax_h3_image", references=references + ["16.png"])
+    with pytest.raises(ValueError, match="6 steps"):
+        options("minimax_h3_image", steps=8)
+    with pytest.raises(ValueError, match="profiles"):
+        options("minimax_h3_image", profile="fast")
+
+
+def test_minimax_h3_image_layout_checks_the_manifest_and_both_components(tmp_path):
+    files = (
+        "minimax_h3_image_orbitquant.py",
+        "transformer/model.safetensors",
+        "transformer/modulation.json",
+    )
+    for name in files:
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_bytes(b"x")
+    quantized = {"quant_method": "orbitquant"}
+    (tmp_path / "transformer/quantization_config.json").write_text(json.dumps(quantized))
+    (tmp_path / "text_encoder").mkdir()
+    (tmp_path / "text_encoder/config.json").write_text(json.dumps({"quantization_config": {}}))
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "vimoo-orbitquant"}))
+    with pytest.raises(ValueError, match="MiniMax-H3-Image OrbitQuant"):
+        model.validate_layout(tmp_path, "minimax_h3_image")
+    (tmp_path / "manifest.json").write_text(json.dumps({"format": "minimax-h3-image-orbitquant"}))
+    with pytest.raises(ValueError, match="not an OrbitQuant"):
+        model.validate_layout(tmp_path, "minimax_h3_image")
+    text_config = {"quantization_config": quantized}
+    (tmp_path / "text_encoder/config.json").write_text(json.dumps(text_config))
+    model.validate_layout(tmp_path, "minimax_h3_image")
+    (tmp_path / "transformer/modulation.json").unlink()
+    with pytest.raises(ValueError, match="missing transformer/modulation.json"):
+        model.validate_layout(tmp_path, "minimax_h3_image")
+
+
 def test_drama3_defaults_and_speaker_rules():
     result = options("drama3", speakers=[{"path": "voice.wav", "text": "Hello."}])
     assert (result["frames"], result["steps"], result["profile"]) == (500, 0, "default")
@@ -735,3 +782,20 @@ def test_one_shot_worker_does_not_cache(monkeypatch):
     worker.cached("a", lambda: loads.append(1))
     worker.cached("a", lambda: loads.append(1))
     assert loads == [1, 1]
+
+
+def test_call_counter_keeps_the_signature_of_the_wrapped_forward():
+    # The MiniMax-H3-Image pipeline passes only the inputs that the transformer's forward names.
+    import inspect
+
+    calls = []
+
+    class Model:
+        def forward(self, hidden_states, token_tags, return_dict=True):
+            return hidden_states, token_tags
+
+    counted = worker._count_calls(Model().forward, lambda: calls.append(1))
+    names = list(inspect.signature(counted).parameters)
+    assert names == ["hidden_states", "token_tags", "return_dict"]
+    assert counted(1, token_tags=2) == (1, 2)
+    assert calls == [1]
